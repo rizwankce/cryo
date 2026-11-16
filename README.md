@@ -1,6 +1,11 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/hero-dark.svg">
+  <img alt="Cryo: frozen Macs, thawed in seconds. A bay with two capsules, one frozen and one leased." src="assets/hero-light.svg">
+</picture>
+
 # Cryo
 
-**Frozen Macs, thawed in seconds.** Cryo turns the Macs you already own into a pool of clean,
+Cryo turns the Macs you already own into a pool of clean,
 isolated macOS VMs for coding agents and CI. Each VM waits as saved machine state on disk, and is
 restored and handed out the moment someone asks for one. When the lease ends, the VM is thrown away
 and a fresh one is thawed in its place.
@@ -10,6 +15,18 @@ cryo lease            # L81 ready: ssh cryo-L81
 ssh cryo-L81 'xcodebuild test ...'
 cryo release L81      # gone; a clean one is already thawing
 ```
+
+## Contents
+
+- [Why](#why)
+- [Requirements](#requirements)
+- [Install](#install)
+- [Quick start](#quick-start)
+- [For coding agents](#for-coding-agents)
+- [CI](#ci)
+- [Building](#building)
+- [Docs](docs/README.md)
+- [License](#license)
 
 ## Why
 
