@@ -587,7 +587,7 @@ func age(_ paths: String...) {
 			e.stderr = ""
 			#expect(e.run("logs") == 1)
 			#expect(e.stderr.contains("cryo logs: no bay log at \(e.home)/.cryo/bay.log"))
-			#expect(e.stderr.contains("subsystem == \"dev.cryo.bay\""))
+			#expect(e.stderr.contains("subsystem == \"dev.rizwan.cryo.bay\""))
 		#endif
 	}
 
@@ -656,8 +656,8 @@ func age(_ paths: String...) {
 		let e = try Env()
 		#expect(e.run("help", "bay") == 0)
 		#expect(!e.stdout.contains("stop|"))
-		#expect(e.stdout.contains("launchctl bootout gui/$(id -u)/dev.cryo.bay"))
-		#expect(e.stdout.contains("launchctl kickstart -k gui/$(id -u)/dev.cryo.bay"))
+		#expect(e.stdout.contains("launchctl bootout gui/$(id -u)/dev.rizwan.cryo.bay"))
+		#expect(e.stdout.contains("launchctl kickstart -k gui/$(id -u)/dev.rizwan.cryo.bay"))
 	}
 
 	@Test func doctorCommandPrintsChecks() throws {

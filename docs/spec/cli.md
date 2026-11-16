@@ -30,7 +30,7 @@ macOS bay only:
 cryo doctor [--fix]                     host checks (host only when no bay runs)
 cryo logs [-n N] [-f]                   end of the bay's log (default 50 lines; -f follows)
 cryo bay start [--listen :7477]         run the bay in this terminal (Ctrl-C stops it)
-cryo bay install | uninstall            LaunchAgent dev.cryo.bay + pf root helper (one sudo)
+cryo bay install | uninstall            LaunchAgent dev.rizwan.cryo.bay + pf root helper (one sudo)
 cryo bay token [--rotate]               the network listener's bearer token
 cryo bay help                           every bay subcommand, including the debug ones below
 cryo image build|ls|use|rm              golden images (image.md)
@@ -49,10 +49,10 @@ cryo ci …                               runs cryo-ci, a separate program: GitH
   (`~/.cryo/bay-restarting`), prints `{"bay": {"state": "restarting", "alert": "…"}}` and exits 1.
 - **`logs`:** prints `$CRYO_HOME/bay.log`, else `~/.cryo/bay.log`: what the installed bay writes. A
   foreground `cryo bay start` prints to its terminal instead. The unified log (subsystem
-  `dev.cryo.bay`) has the rest: `log show --last 1h --predicate 'subsystem == "dev.cryo.bay"'`.
+  `dev.rizwan.cryo.bay`) has the rest: `log show --last 1h --predicate 'subsystem == "dev.rizwan.cryo.bay"'`.
 - **`doctor --fix`:** see [setup.md](setup.md). Refuses with `CRYO_URL` set to a remote bay.
 - **Stopping the installed bay:** there is no `cryo bay stop`. `launchctl bootout
-  gui/$(id -u)/dev.cryo.bay` stops it, `launchctl kickstart -k gui/$(id -u)/dev.cryo.bay`
+  gui/$(id -u)/dev.rizwan.cryo.bay` stops it, `launchctl kickstart -k gui/$(id -u)/dev.rizwan.cryo.bay`
   restarts it, `cryo bay install` loads it again. Either ends every lease.
 
 **Debug subcommands** (`cryo bay help`): `paths`, `config` (effective config), `images`,

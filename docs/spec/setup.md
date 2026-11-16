@@ -11,7 +11,7 @@ brew install rizwankce/tap/cryo   (or from a checkout: scripts/install.sh, which
 cryo bay install                  one command, one sudo prompt:
    ├ creates ~/.cryo + config.toml, marks it no-Spotlight
    ├ installs the root helper (at every boot: loads pf, clears stale 10.77 DHCP bindings)
-   ├ installs the LaunchAgent dev.cryo.bay (bay starts at login) and loads it
+   ├ installs the LaunchAgent dev.rizwan.cryo.bay (bay starts at login) and loads it
    └ runs cryo doctor (fix what fails with `cryo doctor --fix` and the hints)
                                   (cryo bay uninstall: removes both, keeps ~/.cryo)
 cryo image build --xcode          builds a golden image (image.md)
@@ -72,13 +72,13 @@ auto-login password, and never writes `/etc/kcpassword`.
 
 ## Stopping and restarting the bay
 
-The installed bay is the LaunchAgent `dev.cryo.bay`; stopping it ends every lease.
+The installed bay is the LaunchAgent `dev.rizwan.cryo.bay`; stopping it ends every lease.
 
 | To | Run |
 |---|---|
-| Stop it | `launchctl bootout gui/$(id -u)/dev.cryo.bay` |
-| Restart it | `launchctl kickstart -k gui/$(id -u)/dev.cryo.bay` |
-| Start it again after a stop | `cryo bay install` (or `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/dev.cryo.bay.plist`) |
+| Stop it | `launchctl bootout gui/$(id -u)/dev.rizwan.cryo.bay` |
+| Restart it | `launchctl kickstart -k gui/$(id -u)/dev.rizwan.cryo.bay` |
+| Start it again after a stop | `cryo bay install` (or `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/dev.rizwan.cryo.bay.plist`) |
 | See what it did | `cryo logs` (`-f` to follow), `cryo status` |
 
 A bay started by hand with `cryo bay start` stops with Ctrl-C. `cryo image use` and `cryo bay

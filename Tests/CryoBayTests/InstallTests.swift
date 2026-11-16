@@ -8,7 +8,7 @@ import Testing
 		let paths = BayPaths(root: URL(filePath: "/tmp/side bay", directoryHint: .isDirectory))
 		let data = try BayInstall.agentPlistData(binary: "/Users/me/.cryo/bin/cryo", paths: paths)
 		let p = try #require(try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
-		#expect(p["Label"] as? String == "dev.cryo.bay")
+		#expect(p["Label"] as? String == "dev.rizwan.cryo.bay")
 		#expect(p["ProgramArguments"] as? [String] == ["/Users/me/.cryo/bin/cryo", "bay", "start"])
 		#expect((p["EnvironmentVariables"] as? [String: String])?["CRYO_HOME"] == "/tmp/side bay")
 		#expect(p["RunAtLoad"] as? Bool == true)
@@ -17,7 +17,7 @@ import Testing
 	@Test func helperLoadsTheRootOwnedRulesIntoTheAnchor() throws {
 		let data = try BayInstall.helperPlistData()
 		let p = try #require(try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
-		#expect(p["Label"] as? String == "dev.cryo.pf")
+		#expect(p["Label"] as? String == "dev.rizwan.cryo.pf")
 		let cmd = try #require((p["ProgramArguments"] as? [String])?.last)
 		#expect(cmd.contains("-a com.apple/cryo -f '/Library/Application Support/Cryo/cryo.pf'"))
 		#expect(BayInstall.pfRules.contains("block in quick from $capsules to $private"))

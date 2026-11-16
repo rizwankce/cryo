@@ -261,7 +261,7 @@ func bayLogPath(_ ctx: CLIContext) -> String {
 private let logsElsewhere = """
 	The installed bay (`cryo bay install`) writes its output there; a bay started with
 	`cryo bay start` in a terminal prints to that terminal. Its unified log:
-	  log show --last 1h --predicate 'subsystem == "dev.cryo.bay"'
+	  log show --last 1h --predicate 'subsystem == "dev.rizwan.cryo.bay"'
 	"""
 
 /// Prints the last lines of the bay's log; with `--follow`, then what the bay appends.

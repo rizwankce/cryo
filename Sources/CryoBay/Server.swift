@@ -4,7 +4,7 @@ import Foundation
 import os
 
 extension BayLog {
-	public static let server = Logger(subsystem: "dev.cryo.bay", category: "server")
+	public static let server = Logger(subsystem: "dev.rizwan.cryo.bay", category: "server")
 }
 
 public struct ServerError: Error, CustomStringConvertible {

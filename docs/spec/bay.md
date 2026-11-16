@@ -6,15 +6,15 @@
 ## Process
 
 - One Swift process; each capsule's VM lives inside it (Virtualization.framework).
-- A LaunchAgent in the logged-in user's session, `dev.cryo.bay` (`cryo bay install`): runs
+- A LaunchAgent in the logged-in user's session, `dev.rizwan.cryo.bay` (`cryo bay install`): runs
   `cryo bay start` at login with `CRYO_HOME` set, restarts it when it exits non-zero (60 s
   throttle), writes stdout and stderr to `~/.cryo/bay.log`. It needs a logged-in GUI session.
 - Logs: a timestamped trace (refills, leases, releases, failures) on stdout, so in `bay.log` for
-  the installed bay (`cryo logs`), plus the unified log, subsystem `dev.cryo.bay`.
-- Stop or restart the installed bay with `launchctl bootout gui/$(id -u)/dev.cryo.bay` or
-  `launchctl kickstart -k gui/$(id -u)/dev.cryo.bay`; a foreground `cryo bay start` stops with
+  the installed bay (`cryo logs`), plus the unified log, subsystem `dev.rizwan.cryo.bay`.
+- Stop or restart the installed bay with `launchctl bootout gui/$(id -u)/dev.rizwan.cryo.bay` or
+  `launchctl kickstart -k gui/$(id -u)/dev.rizwan.cryo.bay`; a foreground `cryo bay start` stops with
   Ctrl-C. A signal shuts the bay down before its VMs stop, so no refill thaws a VM meanwhile.
-- The bay never runs as root and never runs `pfctl`. The root helper (LaunchDaemon `dev.cryo.pf`,
+- The bay never runs as root and never runs `pfctl`. The root helper (LaunchDaemon `dev.rizwan.cryo.pf`,
   installed by `cryo bay install`) loads the pf anchor and clears stale 10.77 DHCP bindings at
   every boot.
 - **Network listener:** `cryo bay start --listen :7477` ([api.md](api.md)). The installed

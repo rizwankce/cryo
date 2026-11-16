@@ -274,9 +274,9 @@ enum Help {
 		usage: cryo bay start [--listen :7477] | install | uninstall | token | help
 
 		Runs the bay (macOS only); `cryo bay help` lists every subcommand.
-		The installed bay is the LaunchAgent dev.cryo.bay (stopping it ends its leases):
-		  stop     launchctl bootout gui/$(id -u)/dev.cryo.bay
-		  restart  launchctl kickstart -k gui/$(id -u)/dev.cryo.bay
+		The installed bay is the LaunchAgent dev.rizwan.cryo.bay (stopping it ends its leases):
+		  stop     launchctl bootout gui/$(id -u)/dev.rizwan.cryo.bay
+		  restart  launchctl kickstart -k gui/$(id -u)/dev.rizwan.cryo.bay
 		  start    cryo bay install (loads it again)
 		A bay started with `cryo bay start` in a terminal stops with Ctrl-C.
 

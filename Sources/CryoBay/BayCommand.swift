@@ -1,10 +1,10 @@
 import Foundation
 import os
 
-/// Unified log, subsystem `dev.cryo.bay` (docs/spec/bay.md "Process"). `cryo logs` prints the bay's `bay.log` instead.
+/// Unified log, subsystem `dev.rizwan.cryo.bay` (docs/spec/bay.md "Process"). `cryo logs` prints the bay's `bay.log` instead.
 public enum BayLog {
-	public static let bay = Logger(subsystem: "dev.cryo.bay", category: "bay")
-	public static let vm = Logger(subsystem: "dev.cryo.bay", category: "vm")
+	public static let bay = Logger(subsystem: "dev.rizwan.cryo.bay", category: "bay")
+	public static let vm = Logger(subsystem: "dev.rizwan.cryo.bay", category: "vm")
 }
 
 /// `cryo bay <subcommand>`. Each subcommand is added by the part of the bay that owns it.

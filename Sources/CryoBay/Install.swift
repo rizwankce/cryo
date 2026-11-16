@@ -6,10 +6,10 @@ import Foundation
 /// every boot. Everything that needs root goes through one `sudo` call.
 public enum BayInstall {
 	/// The bay's LaunchAgent, bootstrapped into the logged-in user's GUI session.
-	public static let agentLabel = "dev.cryo.bay"
+	public static let agentLabel = "dev.rizwan.cryo.bay"
 	/// The root helper: a LaunchDaemon that loads the pf anchor at boot. `cryo doctor` checks this file.
-	public static let helperLabel = "dev.cryo.pf"
-	public static let helperPlist = "/Library/LaunchDaemons/dev.cryo.pf.plist"
+	public static let helperLabel = "dev.rizwan.cryo.pf"
+	public static let helperPlist = "/Library/LaunchDaemons/dev.rizwan.cryo.pf.plist"
 	/// Root-owned copy of the rules the helper loads, so the user account can't change what root loads.
 	public static let helperRules = "/Library/Application Support/Cryo/cryo.pf"
 	static let helperLog = "/var/log/cryo-pf.log"

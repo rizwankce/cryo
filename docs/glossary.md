@@ -19,7 +19,7 @@
 | **lease folder** | Per-lease host folder swapped into the capsule's virtiofs share once per lease |
 | **cache disk** | Per-project APFS disk image, cloned per lease, hot-plugged as USB storage |
 | **refreeze** | Freeze a capsule again in the background after a cold-boot fallback (state `refreezing`) |
-| **root helper** | LaunchDaemon `dev.cryo.pf` that loads the pf anchor at boot; the only part running as root |
+| **root helper** | LaunchDaemon `dev.rizwan.cryo.pf` that loads the pf anchor at boot; the only part running as root |
 | **manifest** | `capsules/<N>/manifest.json` written at freeze; checked before restore, mismatch → cold boot |
 | **doctor** | Host health checks (`cryo doctor`); the bay won't thaw until the ones that block thawing pass |
 | **broken** | A capsule whose last 3 refills failed; the bay keeps retrying it with backoff |

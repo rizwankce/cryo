@@ -50,7 +50,7 @@ struct DoctorTests {
 		#expect(only { $0.autoLoginUser = "admin" }?.result.fix?.contains("now: admin") == true)
 		#expect(only { $0.kcpasswordExists = false }?.fix == nil)
 		#expect(only { $0.fileVault = "FileVault is On." }?.fix == nil)
-		#expect(only { $0.capsuleDHCPBindings = ["10.77.0.2"] }?.result.fix?.contains("kickstart -k system/dev.cryo.pf") == true)
+		#expect(only { $0.capsuleDHCPBindings = ["10.77.0.2"] }?.result.fix?.contains("kickstart -k system/dev.rizwan.cryo.pf") == true)
 		#expect(only { $0.fileVault = "Decryption in progress: Percent completed = 12" } != nil)
 	}
 
