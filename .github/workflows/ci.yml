@@ -1,0 +1,134 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      # The hosted image already has Swift; only install if its version has drifted.
+      - name: Check preinstalled Swift
+        id: swift
+        run: |
+          if swift --version | grep -q 'Swift version 6.4.2 '; then
+            echo 'installed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: SwiftyLab/setup-swift@v1
+        if: steps.swift.outputs.installed != 'true'
+        with:
+          swift-version: '6.4.2'
+      - name: swift-format
+        run: swift format lint --strict --recursive Sources Tests Package.swift
+      - name: shellcheck
+        run: shellcheck scripts/*.sh
+      - name: actionlint
+        run: |
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash) 1.7.7
+          ./actionlint -color
+
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check preinstalled Swift
+        id: swift
+        run: |
+          if swift --version | grep -q 'Swift version 6.4.2 '; then
+            echo 'installed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: SwiftyLab/setup-swift@v1
+        if: steps.swift.outputs.installed != 'true'
+        with:
+          swift-version: '6.4.2'
+      - uses: actions/cache@v4
+        with:
+          path: .build
+          key: ${{ runner.os }}-${{ runner.arch }}-swift-6.4.2-debug-${{ hashFiles('Package.swift', 'Package.resolved', 'Sources/**', 'Tests/**') }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-swift-6.4.2-debug-
+      # The CLI, client, HTTP and MCP code and their tests; the bay is macOS only.
+      - run: swift test
+
+  linux-static:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check preinstalled Swift
+        id: swift
+        run: |
+          if swift --version | grep -q 'Swift version 6.4.2 '; then
+            echo 'installed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: SwiftyLab/setup-swift@v1
+        if: steps.swift.outputs.installed != 'true'
+        with:
+          swift-version: '6.4.2'
+      # SwiftPM requires an explicit SDK directory to exist before installation.
+      - name: Prepare SDK directory
+        run: |
+          mkdir -p "$RUNNER_TEMP/swift-sdks"
+          echo "SWIFT_SDKS_PATH=$RUNNER_TEMP/swift-sdks" >> "$GITHUB_ENV"
+      - uses: actions/cache@v4
+        id: sdk
+        with:
+          path: ${{ env.SWIFT_SDKS_PATH }}
+          key: ${{ runner.os }}-${{ runner.arch }}-swift-6.4.2-static-sdk
+      - name: Install static Linux SDK
+        if: steps.sdk.outputs.cache-hit != 'true'
+        run: >
+          swift sdk install --swift-sdks-path "$SWIFT_SDKS_PATH"
+          https://download.swift.org/swift-6.4.2-release/static-sdk/swift-6.4.2-RELEASE/swift-6.4.2-RELEASE_static-linux-0.1.0.artifactbundle.tar.gz
+          --checksum 3786b179936d9cc9e266dd506bd1654176358d7b25288e243359f4d17cc4dc5a
+      - uses: actions/cache@v4
+        with:
+          path: .build
+          key: ${{ runner.os }}-${{ runner.arch }}-swift-6.4.2-static-${{ hashFiles('Package.swift', 'Package.resolved', 'Sources/**') }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-swift-6.4.2-static-
+      - run: swift build -c release --swift-sdks-path "$SWIFT_SDKS_PATH" --swift-sdk x86_64-swift-linux-musl -Xlinker --gc-sections -Xlinker -s
+      - name: Binary size and smoke test
+        run: |
+          BIN="$(swift build -c release --swift-sdks-path "$SWIFT_SDKS_PATH" --swift-sdk x86_64-swift-linux-musl --product cryo --show-bin-path)/cryo"
+          echo "BIN=$BIN" >> "$GITHUB_ENV"
+          ls -l "$BIN"
+          "$BIN" version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cryo-linux-x86_64
+          path: ${{ env.BIN }}
+
+  macos:
+    # macos-latest is still macOS 26; the bay needs macOS 27 and its SDK.
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Identify toolchain
+        id: toolchain
+        run: |
+          xcode_version="$(xcodebuild -version)"
+          echo "$xcode_version"
+          swift --version
+          echo "xcode=$(echo "$xcode_version" | shasum -a 256 | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: .build
+          key: ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.toolchain.outputs.xcode }}-debug-${{ hashFiles('Package.swift', 'Package.resolved', 'Sources/**', 'Tests/**') }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-xcode-${{ steps.toolchain.outputs.xcode }}-debug-
+      - run: swift test
+      - name: Release build, signed with the virtualization entitlement
+        run: |
+          swift build -c release --product cryo
+          codesign -f -s - --entitlements scripts/cryo.entitlements .build/release/cryo
+          codesign -d --entitlements - .build/release/cryo 2>&1 | grep -q com.apple.security.virtualization
+          .build/release/cryo version
