@@ -121,7 +121,7 @@ private struct ActiveLease {
 /// actor, where Virtualization.framework wants its objects; the protocol's async methods hop here.
 @MainActor
 public final class Bay: BayService {
-	public static let bayVersion = "0.0.0-dev"
+	public static let bayVersion = "0.1.0"
 
 	public let paths: BayPaths
 	private(set) var config = BayConfig()
