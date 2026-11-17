@@ -131,8 +131,14 @@ extension DeckFixture {
 		try await withDeck { fx, _ in
 			let cli = try fx.cli()
 			_ = try await blocking { cli.run(["lease"]) }
-			cli.clear()
-			let got8 = try await blocking { cli.run(["status"]) }
+			// The deck's bay counts come from its health poll, which may not have seen the lease yet.
+			var got8: Int32 = -1
+			let caughtUp = await waitUntil {
+				cli.clear()
+				got8 = (try? await blocking { cli.run(["status"]) }) ?? -1
+				return cli.out.contains("1 thawed, 1 leased of 2")
+			}
+			#expect(caughtUp)
 			#expect(got8 == 0)
 			#expect(cli.out.contains("bay: version test, image fake-image, doctor ok"))
 			#expect(cli.out.contains("capsule 0"))

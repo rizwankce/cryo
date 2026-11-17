@@ -55,8 +55,7 @@ enum DeckRun {
 			bays: config.bays, socketPath: paths.socket.path, token: token, version: version,
 			counter: LeaseCounter(file: paths.nextLease.path),
 			event: { line in
-				print("\(timestamp()) \(line)")
-				fflush(stdout)
+				writeAll(1, "\(timestamp()) \(line)\n")
 			})
 		let box = StartBox()
 		Task {
