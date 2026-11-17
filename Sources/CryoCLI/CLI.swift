@@ -113,7 +113,8 @@ public enum CryoCLI {
 			#if canImport(Darwin)
 				exe = Bundle.main.executablePath
 			#else
-				exe = Bundle.main.executablePath ?? CommandLine.arguments.first
+				// Linux: Bundle isn't in FoundationEssentials (static musl builds); /proc has the real path.
+				exe = (try? FileManager.default.destinationOfSymbolicLink(atPath: "/proc/self/exe")) ?? CommandLine.arguments.first
 			#endif
 			return DeckCommand.main(rest, environment: ctx.environment, executable: exe, version: cryoVersion, out: ctx.out, err: ctx.err)
 		case "ci":

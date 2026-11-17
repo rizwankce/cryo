@@ -189,7 +189,7 @@ public final class BayServer: @unchecked Sendable {
 		var p = pollfd(fd: s.fd, events: Int16(POLLIN), revents: 0)
 		guard poll(&p, 1, 0) > 0 else { return false }
 		var b: UInt8 = 0
-		return recv(s.fd, &b, 1, MSG_PEEK | MSG_DONTWAIT) == 0
+		return recv(s.fd, &b, 1, Int32(MSG_PEEK | MSG_DONTWAIT)) == 0
 	}
 
 	// MARK: serving
