@@ -1,4 +1,5 @@
 import CryoAPI
+import CryoServer
 import Foundation
 
 // MARK: - Pure lease logic (unit-tested without VMs)

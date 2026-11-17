@@ -10,8 +10,8 @@
 - **Network listener** (optional, off by default): `cryo bay start --listen :7477` (also `7477` or
   `host:port`; no host means all interfaces); every request needs `Authorization: Bearer <token>`,
   printed by `cryo bay token` (stored in `~/.cryo/token`; `--rotate` makes a new one). The
-  installed LaunchAgent runs `cryo bay start` without `--listen`. For other machines (e.g. Linux)
-  on your network. Plain HTTP, no TLS in v1: the token travels in clear text, so use it only on a
+  installed LaunchAgent has no flag; it listens when `listen = ":7477"` is in config.toml,
+  which `cryo bay install --listen :7477` writes. For other machines (e.g. Linux) on your network. Plain HTTP, no TLS in v1: the token travels in clear text, so use it only on a
   trusted LAN or VPN.
 - Every response carries `Cryo-Api-Version: 1`. Errors are always
   `{"error": {"code": "…", "message": "…"}}`:
@@ -29,6 +29,8 @@
 | 501 | `not_implemented` | Admin endpoints, unix socket |
 | 503 | `no_capacity` | No capsule within `wait_s`, or the doctor gate is closed |
 | 503 | `capsule_unreachable` | `connect`: the capsule's sshd doesn't answer within 3 s |
+| 503 | `bay_unreachable` | A deck only: it could not reach the bay ([below](#through-a-deck)) |
+| 502 | `bay_incompatible`, `bay_error` | A deck only: the bay's API version is not supported, or it sent an unusable response |
 
 ## Endpoints
 
@@ -58,6 +60,24 @@ frozen ([setup.md](setup.md) "Which checks block thawing"); it is absent once th
 While it is set, `POST /v1/leases` fails at once with `503 no_capacity` naming them.
 `bay.alert` (optional) is a problem only a person can fix, with the command to
 run, e.g. capsules stuck on taken vmnet subnets; `cryo status` prints it as `ALERT:`.
+
+## Through a deck
+
+[A deck](deck.md) serves this same API in front of several bays. Differences:
+
+- Lease ids are `D<n>`, and `ssh.host` and `ssh.config` use them (`cryo-D7`).
+- `folder` in `POST /v1/leases` is refused with `400 bad_request`.
+- `GET /v1/status` adds an optional `bays: [{name, url, online, capsules, image, version}]`. The
+  top-level `capsules` are every bay's, renumbered (a lease's `capsule` matches that numbering);
+  `bays[].capsules` keep each bay's own numbers. `bay.image` is `"-"` when no bay is online, the
+  digest when the online bays agree, `"mixed"` otherwise. `image` and `version` in `bays[]` are null
+  for a bay that is offline. Clients that don't know `bays` ignore it.
+- `connect` is relayed to the owning bay; if the bay can't be reached it is
+  `503 capsule_unreachable`, and any other call is `503 bay_unreachable`.
+- A lease whose bay is offline, that the bay says is gone (its `404` or `410`), or that the deck no
+  longer knows (after a deck restart or `cryo deck rm`) answers `410 lease_lost`, `DELETE` included:
+  there is no `404` for a lease through a deck. An offline bay's leases are dropped at once.
+- `GET /v1/doctor` has one check per bay; with no bay configured, one failing check.
 
 ## Health
 

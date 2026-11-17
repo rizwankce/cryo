@@ -23,6 +23,7 @@ cryo release L81      # gone; a clean one is already thawing
 - [Install](#install)
 - [Quick start](#quick-start)
 - [For coding agents](#for-coding-agents)
+- [Several Macs](#several-macs)
 - [CI](#ci)
 - [Building](#building)
 - [Docs](docs/README.md)
@@ -92,6 +93,21 @@ With Homebrew, the skill is installed alongside the binary. Link it for Claude C
 mkdir -p ~/.claude/skills && ln -s "$(brew --prefix cryo)/share/cryo/skills/cryo" ~/.claude/skills/cryo
 ```
 
+## Several Macs
+
+A deck puts the bays of several Macs behind one endpoint. Clients ask the deck for a lease and it
+picks a Mac with a free capsule; if none is free, the request queues. The deck runs on any Mac or
+Linux machine on your network. It uses plain HTTP and tokens, so keep it on a trusted LAN or VPN.
+
+```sh
+cryo bay install --listen :7477; cryo bay token                    # on each Mac
+cryo deck add mini-1 http://mini-1.lan:7477 <bay token>            # on the deck machine, per Mac
+cryo deck token; cryo deck start                                   # or: cryo deck install --listen :7400
+CRYO_URL=http://deck.lan:7400 CRYO_TOKEN=<deck token> cryo lease   # on any client
+```
+
+Details: [docs/spec/deck.md](docs/spec/deck.md).
+
 ## CI
 
 [cryo-ci](https://github.com/rizwankce/cryo-ci) runs GitHub Actions jobs on capsules: each job gets
@@ -106,7 +122,8 @@ swift format lint --strict --recursive Sources Tests Package.swift   # CI runs t
 ```
 
 The bay needs macOS 27 and Xcode 27. The CLI, client and MCP server also build on Linux, so an
-agent on Linux can lease from a bay started with `cryo bay start --listen :7477`
+agent on Linux can lease from a bay with a network listener (`cryo bay install --listen :7477`,
+or `cryo bay start --listen :7477` by hand)
 (`CRYO_URL`, `CRYO_TOKEN`).
 
 ## License

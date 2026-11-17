@@ -8,8 +8,10 @@
 ```
 brew install rizwankce/tap/cryo   (or from a checkout: scripts/install.sh, which builds and
                                    signs cryo into ~/.cryo/bin, then runs the next step)
-cryo bay install                  one command, one sudo prompt:
+cryo bay install [--listen :7477]  one command, one sudo prompt:
    ├ creates ~/.cryo + config.toml, marks it no-Spotlight
+   │   (--listen :7477 also saves the network listener in config.toml; without the flag an
+   │    existing `listen` stays; `cryo bay token` prints the token other machines need)
    ├ installs the root helper (at every boot: loads pf, clears stale 10.77 DHCP bindings)
    ├ installs the LaunchAgent dev.rizwan.cryo.bay (bay starts at login) and loads it
    └ runs cryo doctor (fix what fails with `cryo doctor --fix` and the hints)

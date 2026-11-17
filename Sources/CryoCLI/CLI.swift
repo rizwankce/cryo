@@ -1,5 +1,6 @@
 import CryoAPI
 import CryoClient
+import CryoDeck
 import CryoHTTP
 import CryoMCP
 
@@ -26,7 +27,7 @@ public enum CryoCLI {
 		} catch {
 			// Commands that need no bay still work; the others report the bad target.
 			let ctx = CLIContext.process(target: CryoTarget(endpoint: .unix(path: "/nonexistent")), home: env["HOME"] ?? "", environment: env)
-			if let cmd = arguments.first, ["version", "help", "--help", "-h", "--version"].contains(cmd) || arguments.contains("--help") {
+			if let cmd = arguments.first, ["version", "help", "--help", "-h", "--version", "deck"].contains(cmd) || arguments.contains("--help") {
 				return run(arguments, ctx)
 			}
 			ctx.warn("cryo: \(error)")
@@ -107,6 +108,14 @@ public enum CryoCLI {
 			return guarded(ctx, cmd, rest, ArgSpec()) { ctx, _ in
 				runMCPOnStdio(client: ctx.client, home: ctx.home, version: cryoVersion)
 			}
+		case "deck":
+			var exe: String?
+			#if canImport(Darwin)
+				exe = Bundle.main.executablePath
+			#else
+				exe = Bundle.main.executablePath ?? CommandLine.arguments.first
+			#endif
+			return DeckCommand.main(rest, environment: ctx.environment, executable: exe, version: cryoVersion, out: ctx.out, err: ctx.err)
 		case "ci":
 			// GitHub Actions on capsules is its own program, cryo-ci; `cryo ci …` runs it.
 			return runCryoCI(rest, ctx)
@@ -180,6 +189,7 @@ enum Help {
 		  logs       bay logs (macOS bay only)
 		  bay        run the bay (macOS only)
 		  image      build, list, switch and remove golden images (macOS bay only)
+		  deck       several Macs' bays behind one endpoint (LAN or VPN only, no TLS; `cryo deck help`)
 		  mcp        MCP server over stdio
 		  ci         run GitHub Actions jobs on capsules (runs cryo-ci; `cryo ci --help`)
 		  version    print the version
@@ -190,6 +200,7 @@ enum Help {
 		"""
 
 	static let topics: [String: String] = [
+		"deck": DeckCommand.help,
 		"lease": """
 		usage: cryo lease [--folder PATH] [--cache NAME] [--name NAME] [--wait SECONDS] [--idle DURATION] [--json]
 
@@ -271,9 +282,12 @@ enum Help {
 
 		""",
 		"bay": """
-		usage: cryo bay start [--listen :7477] | install | uninstall | token | help
+		usage: cryo bay start [--listen :7477] | install [--listen :7477] | uninstall | token | help
 
 		Runs the bay (macOS only); `cryo bay help` lists every subcommand.
+		The network listener (a token-protected TCP port for other machines) is off unless `listen`
+		is set in config.toml: `cryo bay install --listen :7477` writes it (a later plain install
+		keeps it) and `cryo bay start --listen` overrides it. `cryo bay token` prints the token.
 		The installed bay is the LaunchAgent dev.rizwan.cryo.bay (stopping it ends its leases):
 		  stop     launchctl bootout gui/$(id -u)/dev.rizwan.cryo.bay
 		  restart  launchctl kickstart -k gui/$(id -u)/dev.rizwan.cryo.bay

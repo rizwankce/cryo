@@ -5,6 +5,7 @@
 | Word | Meaning |
 |---|---|
 | **bay** | Cryo on one Mac (`cryo bay`). The only process that touches VMs |
+| **deck** | A process that puts several bays behind one `/v1` endpoint (`cryo deck`). Its leases are `D<n>` |
 | **capsule** | One VM position on a bay (max 2 per Mac, Apple's limit). Own identity, network, saved state |
 | **frozen** | A capsule saved to disk as machine state (`capsules/<N>/state.vzstate`) |
 | **thawed** | Restored from saved state and paused in RAM, ready to lease |

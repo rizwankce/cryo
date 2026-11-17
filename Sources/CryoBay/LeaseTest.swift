@@ -1,4 +1,5 @@
 import CryoAPI
+import CryoServer
 import Foundation
 
 /// `cryo bay lease-test [--folder DIR] [--cache NAME] [--runs 2] [--queue]`: the bay end to end in

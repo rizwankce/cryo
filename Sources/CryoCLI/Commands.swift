@@ -191,6 +191,17 @@ func statusCommand(_ ctx: CLIContext, _ p: ParsedArgs) throws -> Int32 {
 		rows.append(["capsule \(c.n)", c.state, c.lease ?? "-"])
 	}
 	if !rows.isEmpty { ctx.out(table(rows)) }
+	if let bays = s.bays, !bays.isEmpty {
+		ctx.say("bays:")
+		var bayRows: [[String]] = []
+		for b in bays {
+			let thawed = b.capsules.filter { $0.state == "thawed" }.count
+			let leased = b.capsules.filter { $0.state == "leased" }.count
+			let counts = b.online ? "\(thawed) thawed, \(leased) leased of \(b.capsules.count)" : "-"
+			bayRows.append([b.name, b.online ? "online" : "offline", counts, b.version.map { "version \($0)" } ?? "-", b.url])
+		}
+		ctx.out(table(bayRows))
+	}
 	ctx.say("queue: \(s.queue)")
 	return 0
 }

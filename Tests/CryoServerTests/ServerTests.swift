@@ -4,8 +4,8 @@ import FakeBay
 import Foundation
 import Testing
 
-@testable import CryoBay
 @testable import CryoClient
+@testable import CryoServer
 
 /// In-memory service: enough behavior to drive every route.
 final class FakeService: BayService, @unchecked Sendable {
@@ -92,11 +92,18 @@ final class FakeService: BayService, @unchecked Sendable {
 }
 
 /// Short path: unix socket paths top out around 104 bytes.
-func shortTempPaths() throws -> BayPaths {
+func shortTempPaths() throws -> TestPaths {
 	var template = Array("/tmp/cryo-srv-XXXXXX".utf8CString)
 	guard mkdtemp(&template) != nil else { throw SocketError("mkdtemp", errno: errno) }
 	let d = String(decoding: template.dropLast().map { UInt8(bitPattern: $0) }, as: UTF8.self)
-	return BayPaths(root: URL(filePath: d, directoryHint: .isDirectory))
+	return TestPaths(root: URL(filePath: d, directoryHint: .isDirectory))
+}
+
+/// A temp directory holding the server's socket and a token file.
+struct TestPaths {
+	let root: URL
+	var socket: URL { root.appending(path: "bay.sock") }
+	var token: URL { root.appending(path: "token") }
 }
 
 /// A port nothing listens on.
@@ -117,7 +124,7 @@ func eventually(_ seconds: Double = 3, _ cond: () -> Bool) -> Bool {
 }
 
 struct Harness {
-	let paths: BayPaths
+	let paths: TestPaths
 	let service: FakeService
 	let server: BayServer
 	var unix: CryoClient { CryoClient(target: CryoTarget(endpoint: .unix(path: paths.socket.path))) }
@@ -133,7 +140,7 @@ struct Harness {
 func withServer<T>(listen: Bool = false, token: String? = "secret-token", _ body: (Harness) throws -> T) throws -> T {
 	let paths = try shortTempPaths()
 	let service = FakeService()
-	let server = BayServer(service: service, paths: paths)
+	let server = BayServer(service: service, socketPath: paths.socket.path)
 	try server.start(listen: listen ? ("127.0.0.1", 0) : nil, token: token)
 	let h = Harness(paths: paths, service: service, server: server)
 	defer { h.cleanup() }
@@ -282,7 +289,7 @@ func raw(_ socketPath: String, _ method: String, _ target: String, headers: [Str
 	@Test func tcpWithoutTokenIsRefusedAtStart() throws {
 		let paths = try shortTempPaths()
 		defer { try? FileManager.default.removeItem(at: paths.root) }
-		let server = BayServer(service: FakeService(), paths: paths)
+		let server = BayServer(service: FakeService(), socketPath: paths.socket.path)
 		#expect(throws: ServerError.self) { try server.start(listen: ("127.0.0.1", 0), token: nil) }
 		#expect(throws: ServerError.self) { try server.start(listen: ("127.0.0.1", 0), token: "") }
 		#expect(!FileManager.default.fileExists(atPath: paths.socket.path))
@@ -308,7 +315,7 @@ func raw(_ socketPath: String, _ method: String, _ target: String, headers: [Str
 		_ = withUnsafePointer(to: &addr) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) } }
 		close(fd)
 		#expect(FileManager.default.fileExists(atPath: paths.socket.path))
-		let server = BayServer(service: FakeService(), paths: paths)
+		let server = BayServer(service: FakeService(), socketPath: paths.socket.path)
 		try server.start(listen: nil, token: nil)
 		defer { server.stop() }
 		let c = CryoClient(target: CryoTarget(endpoint: .unix(path: paths.socket.path)))
@@ -317,7 +324,7 @@ func raw(_ socketPath: String, _ method: String, _ target: String, headers: [Str
 
 	@Test func secondServerOnTheSameSocketRefuses() throws {
 		try withServer { h in
-			let other = BayServer(service: FakeService(), paths: h.paths)
+			let other = BayServer(service: FakeService(), socketPath: h.paths.socket.path)
 			do {
 				try other.start(listen: nil, token: nil)
 				Issue.record("second start should fail")
@@ -334,10 +341,10 @@ func raw(_ socketPath: String, _ method: String, _ target: String, headers: [Str
 		let paths = try shortTempPaths()
 		defer { try? FileManager.default.removeItem(at: paths.root) }
 		let service = FakeService()
-		let a = BayServer(service: service, paths: paths)
+		let a = BayServer(service: service, socketPath: paths.socket.path)
 		try a.start(listen: nil, token: nil)
 		a.stop()
-		let b = BayServer(service: service, paths: paths)
+		let b = BayServer(service: service, socketPath: paths.socket.path)
 		try b.start(listen: nil, token: nil)
 		defer { b.stop() }
 		let c = CryoClient(target: CryoTarget(endpoint: .unix(path: paths.socket.path)))
@@ -580,35 +587,23 @@ func raw(_ socketPath: String, _ method: String, _ target: String, headers: [Str
 	}
 }
 
-@Suite struct TokenTests {
+@Suite struct TokenAndListenTests {
 	@Test func createsLoadsAndRotates() throws {
 		let paths = try shortTempPaths()
 		defer { try? FileManager.default.removeItem(at: paths.root) }
-		#expect(BayToken.load(paths) == nil)
-		let t = try BayToken.create(paths)
+		#expect(BearerToken.load(paths.token) == nil)
+		let t = try BearerToken.create(paths.token)
 		#expect(t.count == 64)
 		#expect(t.allSatisfy { $0.isHexDigit })
-		#expect(BayToken.load(paths) == t)
-		#expect(try BayToken.create(paths) == t)
+		#expect(BearerToken.load(paths.token) == t)
+		#expect(try BearerToken.create(paths.token) == t)
 		var st = stat()
 		#expect(stat(paths.token.path, &st) == 0)
 		#expect(st.st_mode & 0o777 == 0o600)
-		let r = try BayToken.create(paths, rotate: true)
+		let r = try BearerToken.create(paths.token, rotate: true)
 		#expect(r != t && r.count == 64)
-		#expect(BayToken.load(paths) == r)
+		#expect(BearerToken.load(paths.token) == r)
 		#expect(stat(paths.token.path, &st) == 0 && st.st_mode & 0o777 == 0o600)
-	}
-
-	@Test func commandPrintsTheToken() throws {
-		let paths = try shortTempPaths()
-		defer { try? FileManager.default.removeItem(at: paths.root) }
-		nonisolated(unsafe) var out = ""
-		#expect(try BayToken.command([], paths: paths, out: { out += $0 }) == 0)
-		let first = out.trimmingCharacters(in: .whitespacesAndNewlines)
-		#expect(first == BayToken.load(paths))
-		out = ""
-		_ = try BayToken.command(["--rotate"], paths: paths, out: { out += $0 })
-		#expect(out.trimmingCharacters(in: .whitespacesAndNewlines) != first)
 	}
 
 	@Test func parseListen() {

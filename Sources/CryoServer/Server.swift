@@ -1,15 +1,10 @@
 import CryoAPI
 import CryoHTTP
 import Foundation
-import os
-
-extension BayLog {
-	public static let server = Logger(subsystem: "dev.rizwan.cryo.bay", category: "server")
-}
 
 public struct ServerError: Error, CustomStringConvertible {
 	public let description: String
-	init(_ description: String) { self.description = description }
+	public init(_ description: String) { self.description = description }
 }
 
 /// The bay's HTTP API (docs/spec/api.md) on a unix socket and, optionally, a token-protected TCP
@@ -17,7 +12,8 @@ public struct ServerError: Error, CustomStringConvertible {
 /// `BayService` and waits, so a slow `createLease` never blocks `status` on another connection.
 public final class BayServer: @unchecked Sendable {
 	private let service: any BayService
-	private let paths: BayPaths
+	private let log: ServerLog
+	public let socketPath: String
 	private let m = Monitor()
 	// Guarded by `m`.
 	private var stopped = true
@@ -28,14 +24,15 @@ public final class BayServer: @unchecked Sendable {
 	private var _tcpPort: Int?
 	private var _minVersion: Int?
 
-	public init(service: any BayService, paths: BayPaths) {
+	/// Serves `service` on the unix socket `socketPath` (plus TCP once `start` is given a listener).
+	public init(service: any BayService, socketPath: String, log: ServerLog = .server) {
 		self.service = service
-		self.paths = paths
+		self.socketPath = socketPath
+		self.log = log
 	}
 
 	deinit { stop() }
 
-	public var socketPath: String { paths.socket.path }
 	/// The bound TCP port (useful with port 0), nil when there is no TCP listener.
 	public var tcpPort: Int? { m.withLock { _tcpPort } }
 	/// Same switch as FakeBay's: answer 426 `upgrade_required` to clients announcing a lower API
@@ -59,7 +56,7 @@ public final class BayServer: @unchecked Sendable {
 
 	public func start(listen: (host: String, port: Int)?, token: String?) throws {
 		if m.withLock({ !stopped }) { throw ServerError("server already started") }
-		if listen != nil, token?.isEmpty ?? true { throw ServerError("a network listener needs a token (run `cryo bay token`)") }
+		if listen != nil, token?.isEmpty ?? true { throw ServerError("a network listener needs a bearer token") }
 		let path = socketPath
 
 		// A leftover socket file is stale unless something still answers on it.
@@ -101,13 +98,13 @@ public final class BayServer: @unchecked Sendable {
 					} catch {
 						// A lasting error (EMFILE: out of file descriptors) leaves the listener readable,
 						// so retrying at once would spin a core. Back off up to 0.5 s; log once per streak.
-						if failures == 0 { BayLog.server.error("accept failed, backing off: \(String(describing: error), privacy: .public)") }
+						if failures == 0 { log.error("accept failed, backing off: \(String(describing: error))") }
 						failures += 1
 						usleep(UInt32(min(10_000 << min(failures, 6), 500_000)))
 						continue
 					}
 					if failures > 0 {
-						BayLog.server.info("accept works again after \(failures) failures")
+						log.info("accept works again after \(failures) failures")
 						failures = 0
 					}
 					guard let c = accepted else { continue }
@@ -120,7 +117,7 @@ public final class BayServer: @unchecked Sendable {
 				}
 			}
 		}
-		BayLog.server.info("api listening on \(path, privacy: .public)\(listen.map { " and \($0.host):\(self.tcpPort ?? $0.port)" } ?? "", privacy: .public)")
+		log.info("api listening on \(path)\(listen.map { " and \($0.host):\(self.tcpPort ?? $0.port)" } ?? "")")
 	}
 
 	public func stop() {
@@ -229,7 +226,7 @@ public final class BayServer: @unchecked Sendable {
 			} else {
 				resp = route(req, parts: parts, c, viaTCP: viaTCP)
 			}
-			BayLog.server.debug("\(req.method, privacy: .public) \(req.path, privacy: .public) -> \(resp.status)")
+			log.debug("\(req.method) \(req.path) -> \(resp.status)")
 			do { try c.writeAll(resp.serialized()) } catch { return }
 			if req.headers["Connection"]?.lowercased() == "close" { return }
 		}
@@ -332,11 +329,20 @@ public final class BayServer: @unchecked Sendable {
 			return error(400, APIError.badRequest, "connect needs `Connection: Upgrade` and `Upgrade: cryo-ssh`")
 		}
 		let svc = service
-		let target: (host: String, port: Int)
-		do { target = try blocking { try await svc.connectTarget(id) } } catch { return errorResponse(error) }
-		guard let up = try? Socket.connectTCP(host: target.host, port: target.port, timeout: 3) else {
-			BayLog.server.error("lease \(id, privacy: .public): capsule sshd \(target.host, privacy: .public):\(target.port) is not reachable")
-			return error(503, APIError.capsuleUnreachable, "capsule sshd for lease \(id) is not reachable")
+		let route: ConnectRoute
+		do { route = try blocking { try await svc.connectRoute(id) } } catch { return errorResponse(error) }
+		let up: Socket
+		switch route {
+		case .tcp(let host, let port):
+			guard let s = try? Socket.connectTCP(host: host, port: port, timeout: 3) else {
+				log.error("lease \(id): capsule sshd \(host):\(port) is not reachable")
+				return error(503, APIError.capsuleUnreachable, "capsule sshd for lease \(id) is not reachable")
+			}
+			up = s
+		case .upstream(let open):
+			do { up = try open() } catch {
+				return errorResponse(error)
+			}
 		}
 		var h = HTTPHeaders()
 		h["Connection"] = "Upgrade"
@@ -430,7 +436,7 @@ public final class BayServer: @unchecked Sendable {
 			let alive = (try? blocking { try await svc.lease(id) }) != nil
 			watch.m.lock()
 			if !alive, !watch.finished {
-				BayLog.server.info("lease \(id, privacy: .public) ended: closing its connect stream")
+				log.info("lease \(id) ended: closing its connect stream")
 				c.shutdownBoth()
 				up.shutdownBoth()
 				return
@@ -459,7 +465,7 @@ public final class BayServer: @unchecked Sendable {
 
 	private func errorResponse(_ e: Error) -> HTTPResponse {
 		if let s = e as? ServiceError { return error(s.status, s.code, s.message) }
-		BayLog.server.error("internal error: \(String(describing: e), privacy: .public)")
+		log.error("internal error: \(String(describing: e))")
 		return error(500, "internal", "\(e)")
 	}
 

@@ -1,3 +1,4 @@
+import CryoServer
 import Foundation
 import Testing
 
@@ -24,6 +25,41 @@ import Testing
 		#expect(c.ignoreDoctor)
 		#expect(try !BayConfig.parse("ignore_doctor = false").ignoreDoctor)
 		#expect(!BayConfig().ignoreDoctor)
+	}
+
+	@Test func parsesListen() throws {
+		#expect(try BayConfig.parse("").listen == nil)
+		#expect(try BayConfig.parse("listen = \":7477\"").listen == ":7477")
+		#expect(try BayConfig.parse("listen = \"7477\"  # all interfaces").listen == "7477")
+		#expect(try BayConfig.parse("listen = \"10.0.0.2:7477\"").listen == "10.0.0.2:7477")
+	}
+
+	@Test func rejectsBadListen() {
+		#expect(throws: BayError.self) { try BayConfig.parse("listen = :7477") }  // not quoted
+		#expect(throws: BayError.self) { try BayConfig.parse("listen = 7477") }
+		#expect(throws: BayError.self) { try BayConfig.parse("listen = \"\"") }
+		#expect(throws: BayError.self) { try BayConfig.parse("listen = \"host:port\"") }
+		#expect(throws: BayError.self) { try BayConfig.parse("listen = \":70000\"") }
+	}
+
+	@Test func listenRoundTripsAndShowsInConfigOutput() throws {
+		var c = BayConfig()
+		c.listen = ":7477"
+		#expect(c.text().contains("listen = \":7477\"\n"))
+		#expect(try BayConfig.parse(c.text()) == c)
+		#expect(!BayConfig().text().contains("listen"))
+	}
+
+	@Test func listenFlagWinsOverConfig() throws {
+		var c = BayConfig()
+		#expect(c.listener(flag: nil) == nil)
+		let flag = BayServer.parseListen("10.0.0.2:9000")
+		#expect(c.listener(flag: flag)?.port == 9000)
+		c.listen = ":7477"
+		#expect(c.listener(flag: nil)?.host == "0.0.0.0")
+		#expect(c.listener(flag: nil)?.port == 7477)
+		#expect(c.listener(flag: flag)?.host == "10.0.0.2")
+		#expect(c.listener(flag: flag)?.port == 9000)
 	}
 
 	@Test func rejectsBadInput() {
