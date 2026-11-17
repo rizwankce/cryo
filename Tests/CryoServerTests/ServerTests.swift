@@ -307,7 +307,11 @@ func raw(_ socketPath: String, _ method: String, _ target: String, headers: [Str
 		let paths = try shortTempPaths()
 		defer { try? FileManager.default.removeItem(at: paths.root) }
 		// A socket file with nobody listening: bind, then close without unlinking.
-		let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+		#if os(Linux)
+			let fd = socket(AF_UNIX, Int32(SOCK_STREAM.rawValue), 0)
+		#else
+			let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+		#endif
 		var addr = sockaddr_un()
 		addr.sun_family = sa_family_t(AF_UNIX)
 		let bytes = Array(paths.socket.path.utf8)
