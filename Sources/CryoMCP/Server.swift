@@ -64,7 +64,7 @@ public final class MCPServer: @unchecked Sendable {
 	public init(
 		client: CryoClient, local: LocalState, runner: CommandRunner = ProcessRunner(),
 		renewInterval: Double = 60, leaseWaitS: Int = MCPServer.defaultLeaseWaitS, inputFD: Int32 = 0, stopFD: Int32 = -1,
-		executable: String? = nil, cwd: String? = nil, version: String = "0.1.0",
+		executable: String? = nil, cwd: String? = nil, version: String = "0.1.1",
 		output: @escaping @Sendable (String) -> Void,
 		log: @escaping @Sendable (String) -> Void = { writeAll(2, "cryo mcp: " + $0 + "\n") }
 	) {
