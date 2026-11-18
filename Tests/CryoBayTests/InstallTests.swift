@@ -50,6 +50,19 @@ import Testing
 		let r = await runProcess("/sbin/pfctl", ["-a", BayInstall.pfAnchor, "-nvf", f.path])
 		#expect(r.status == 0, "\(r.out)")
 		#expect(r.out.contains("<cryo_gateways> port = 53"))
+		#expect(r.out.contains("block drop in quick on bridge100 inet6 all"))
+		#expect(r.out.contains("block drop in quick on bridge199 inet6 all"))
+	}
+
+	/// IPv6 from any vmnet bridge is dropped: the IPv4 rules don't cover a guest reaching the host's
+	/// link-local address (rizwankce/cryo#1).
+	@Test func ipv6IsBlockedOnEveryVmnetBridge() {
+		let bridges = BayInstall.pfBridges()
+		#expect(bridges.count == 100 && bridges.first == "bridge100" && bridges.last == "bridge199")
+		let rules = BayInstall.pfRules
+		#expect(rules.contains("block in quick on $vmnet_bridges inet6 all"))
+		let list = rules.components(separatedBy: "vmnet_bridges = \"{ \\\n")[1].components(separatedBy: "}")[0]
+		#expect(list.split(whereSeparator: { ", \\\n\t".contains($0) }).map(String.init) == bridges)
 	}
 
 	/// The helper's clean-up drops only capsule-subnet bindings.

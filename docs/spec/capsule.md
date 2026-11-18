@@ -30,7 +30,7 @@ capsule is idle and nobody waits, at most 3 tries.
 | Item | Spec |
 |---|---|
 | Per Mac | 2 capsules, numbered 0 and 1, both on the same image digest |
-| Network | Capsule N: vmnet `10.77.N.0/24`, NAT66 off, guest IP pinned at `10.77.N.2` by the freeze, no port forward, pf anchor fences it off the LAN; IPv6 is not fenced yet ([#1](https://github.com/rizwankce/cryo/issues/1)) |
+| Network | Capsule N: vmnet `10.77.N.0/24`, NAT66 off, guest IP pinned at `10.77.N.2` by the freeze, no port forward, pf anchor fences it off the host and LAN (IPv4; all IPv6 from vmnet bridges `bridge100`–`bridge199` is dropped) |
 | Size | Set by the image: Xcode image 4 vCPU / 8 GB, plain image 4 vCPU / 4 GB |
 | Identity | Own machine ID, MAC and aux storage per capsule; never shared or changed |
 

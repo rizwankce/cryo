@@ -24,14 +24,27 @@ public enum BayInstall {
 	/// vmnet network, where vmnet's DNS proxy answers. Never a guest (.2).
 	static func pfGateways() -> [String] { (0...255).map { CapsuleNetwork(subnet: $0).gateway } }
 
-	static func pfRulesText() -> String {
-		let all = pfGateways()
-		let gateways = stride(from: 0, to: all.count, by: 8).map { all[$0..<min($0 + 8, all.count)].joined(separator: ", ") }
+	/// The host-side interfaces vmnet creates for its networks, numbered from bridge100. macOS pf has no
+	/// interface group for bridges, and the root helper loads the rules at boot before any exists, so
+	/// the fence names a fixed range; pf applies a rule to an interface once it appears.
+	static func pfBridges() -> [String] { (100...199).map { "bridge\($0)" } }
+
+	/// Items as a pf list body, eight per line.
+	static func pfList(_ items: [String]) -> String {
+		stride(from: 0, to: items.count, by: 8).map { items[$0..<min($0 + 8, items.count)].joined(separator: ", ") }
 			.joined(separator: ", \\\n\t")
+	}
+
+	static func pfRulesText() -> String {
+		let gateways = pfList(pfGateways())
+		let bridges = pfList(pfBridges())
 		return """
 			# Cryo capsule fence, installed by `cryo bay install`.
 			capsules = "10.77.0.0/16"
 			private = "{ 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 100.64.0.0/10 }"
+			# vmnet's host-side bridges (capsules and any other vmnet VM on this Mac).
+			vmnet_bridges = "{ \\
+				\(bridges) }"
 			# 10.77.N.1 for every N: the host on each capsule network (vmnet's DNS proxy).
 			table <cryo_gateways> const { \\
 				\(gateways) }
@@ -44,6 +57,9 @@ public enum BayInstall {
 			# LAN machines routing in through the host can't reach a capsule. Only private sources: a broader
 			# "from ! $capsules" also caught NAT'd internet replies and cut the guest's egress.
 			block in quick from $private to $capsules
+			# Capsules are IPv4 only. Without this a guest reaches the host's own services on the bridge's
+			# fe80:: address, which the IPv4 rules above don't cover.
+			block in quick on $vmnet_bridges inet6 all
 
 			"""
 	}
