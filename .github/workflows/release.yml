@@ -1,0 +1,47 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    # Same runner and toolchain as the macos job in ci.yml.
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the tag matches cryoVersion
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          CODE="$(sed -n 's/^public let cryoVersion = "\(.*\)"$/\1/p' Sources/CryoAPI/Version.swift)"
+          if [ -z "$CODE" ] || [ "$CODE" != "$V" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME is version $V, but Sources/CryoAPI/Version.swift has cryoVersion \"$CODE\". Bump it in a PR, merge, then tag the merge commit."
+            exit 1
+          fi
+          echo "V=$V" >> "$GITHUB_ENV"
+      - name: Identify toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+      - run: swift build
+      - run: swift test
+      - name: Build the source tarball and checksum
+        run: |
+          git archive --prefix="cryo-$V/" -o "cryo-$V.tar.gz" "$GITHUB_REF_NAME"
+          shasum -a 256 "cryo-$V.tar.gz" > "cryo-$V.tar.gz.sha256"
+          cat "cryo-$V.tar.gz.sha256"
+      - uses: actions/attest@v4
+        with:
+          subject-path: cryo-${{ env.V }}.tar.gz
+      - name: Create the release
+        run: |
+          gh release create "$GITHUB_REF_NAME" "cryo-$V.tar.gz" "cryo-$V.tar.gz.sha256" \
+            --verify-tag --generate-notes --title "cryo $V"
