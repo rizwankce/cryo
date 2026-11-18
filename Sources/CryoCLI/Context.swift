@@ -7,8 +7,6 @@ import CryoHTTP
 	import Foundation
 #endif
 
-public let cryoVersion = "0.1.1"
-
 /// Everything a command touches from the outside world, so tests can substitute it.
 public struct CLIContext {
 	public var home: String
