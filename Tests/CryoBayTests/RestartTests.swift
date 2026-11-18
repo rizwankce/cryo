@@ -61,4 +61,14 @@ import Testing
 		}
 		#expect(failed)
 	}
+
+	@Test func theOldBayAnsweringDuringTheStopIsNotTheNewOne() {
+		var old = Self.status("0.1.3", leases: [])
+		old.health = Status.Health(uptimeS: 600, hostUptimeS: 9000, thermal: "nominal")
+		var new = Self.status("0.2.0", leases: [])
+		new.health = Status.Health(uptimeS: 1, hostUptimeS: 9000, thermal: "nominal")
+		#expect(!BayRestart.startedSince(old, waitedS: 2))
+		#expect(BayRestart.startedSince(new, waitedS: 2))
+		#expect(BayRestart.startedSince(Self.status("0.2.0", leases: []), waitedS: 1))
+	}
 }

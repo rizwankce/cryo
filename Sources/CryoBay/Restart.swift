@@ -18,6 +18,13 @@ public enum BayRestart {
 
 	static func leaseIDs(_ status: Status) -> [String] { status.capsules.compactMap(\.lease) }
 
+	/// Whether `status` comes from a bay started within the last `waitedS` seconds (1 s of slack);
+	/// a status without health counts as new.
+	static func startedSince(_ status: Status, waitedS: Int) -> Bool {
+		guard let up = status.health?.uptimeS else { return true }
+		return up <= waitedS + 1
+	}
+
 	static func summary(old: String?, new: String) -> String { "bay restarted: \(old ?? "not running") → \(new)" }
 
 	@MainActor static func command(_ args: [String], paths: BayPaths, out: BayCommand.Writer) async throws -> Int32 {
@@ -53,9 +60,10 @@ public enum BayRestart {
 		guard r.status == 0 else {
 			throw BayError("launchctl kickstart failed (exit \(r.status)): \(r.out.trimmingCharacters(in: .whitespacesAndNewlines))")
 		}
-		for _ in 0..<polls {
+		for i in 0..<polls {
 			await pause()
-			if let now = status() {
+			// The old bay can still answer while launchd stops it: wait for one started since.
+			if let now = status(), startedSince(now, waitedS: i + 1) {
 				out(summary(old: before?.bay.version, new: now.bay.version) + "\n")
 				return 0
 			}
