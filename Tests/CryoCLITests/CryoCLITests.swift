@@ -680,4 +680,14 @@ func age(_ paths: String...) {
 		let s = try parseArgs(["L1", "ls", "--b"], ArgSpec(stopAtPositional: true))
 		#expect(s.positionals == ["L1", "ls", "--b"])
 	}
+
+	@Test func versionNoteOnlyForALocalBayThatDiffers() throws {
+		let local = CryoTarget(endpoint: .unix(path: "/tmp/bay.sock"))
+		let remote = CryoTarget(endpoint: .tcp(host: "10.0.0.5", port: 7477))
+		#expect(
+			bayVersionNote(target: local, bayVersion: "0.1.3", cliVersion: "0.2.0")
+				== "note: the bay runs 0.1.3, this cryo is 0.2.0; restart it with `cryo bay restart`")
+		#expect(bayVersionNote(target: local, bayVersion: "0.2.0", cliVersion: "0.2.0") == nil)
+		#expect(bayVersionNote(target: remote, bayVersion: "0.1.3", cliVersion: "0.2.0") == nil)
+	}
 }

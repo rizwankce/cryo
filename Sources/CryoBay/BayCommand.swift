@@ -83,6 +83,11 @@ public enum BayCommand {
 		"uninstall": Sub(summary: "remove the LaunchAgent and the root helper; keeps ~/.cryo") { args, paths, out, _ in
 			try await BayInstall.uninstall(args, paths: paths, out: out)
 		},
+		"restart": Sub(
+			summary: "restart the installed bay through launchd; refuses while leases run unless --force", usage: "[--force]", flags: ["--force"]
+		) { args, paths, out, _ in
+			try await BayRestart.command(args, paths: paths, out: out)
+		},
 		"lease-test": Sub(
 			summary: "the bay end to end, no server: [--folder DIR] [--cache NAME] [--runs 2] [--queue]",
 			usage: "[--folder DIR] [--cache NAME] [--runs 2] [--queue]", flags: ["--folder", "--cache", "--runs", "--queue"]

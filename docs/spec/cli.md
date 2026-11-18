@@ -43,6 +43,7 @@ cryo bay start [--listen :7477]         run the bay in this terminal (Ctrl-C sto
 cryo bay install [--listen :7477]       LaunchAgent dev.rizwan.cryo.bay + pf root helper (one sudo);
                                         --listen saves the network listener in config.toml
 cryo bay uninstall                      removes both, keeps ~/.cryo
+cryo bay restart [--force]               restart the installed bay (launchd); refuses while leases run unless --force
 cryo bay token [--rotate]               the network listener's bearer token
 cryo bay help                           every bay subcommand, including the debug ones below
 cryo image build|ls|use|rm              golden images (image.md)
@@ -64,6 +65,11 @@ cryo ci …                               runs cryo-ci, a separate program: GitH
   only at start, so restart it after `deck add`, `rm` or `token --rotate`.
 - **`release`:** if the bay answers `404`, the local key files go anyway. A deck answers `410
   lease_lost` for a lease it lost; then `cryo ls` cleans up.
+- **`status`:** against a local bay (unix socket) whose version differs from this binary's, it first
+  prints `note: the bay runs 0.1.3, this cryo is 0.2.0; restart it with \`cryo bay restart\``.
+- **`bay restart`:** needs the LaunchAgent (else points to `cryo bay install`). Asks the bay for its status; with
+  leases running it refuses, naming them, unless `--force` (a restart ends them). A bay that doesn't answer is
+  just restarted. Runs `launchctl kickstart -k`, waits up to 30 s for the socket, prints `bay restarted: <old> → <new>`.
 - **`status --json`:** when no bay answers but one left a restart note
   (`~/.cryo/bay-restarting`), prints `{"bay": {"state": "restarting", "alert": "…"}}` and exits 1.
 - **`logs`:** prints `$CRYO_HOME/bay.log`, else `~/.cryo/bay.log`: what the installed bay writes. A
