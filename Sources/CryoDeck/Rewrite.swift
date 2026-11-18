@@ -26,14 +26,22 @@ public enum DeckRewrite {
 		return out
 	}
 
-	/// `capsuleOffset`: the bay's capsules are numbered after those of the bays before it, as in the deck's status.
-	public static func lease(_ l: Lease, from bayID: String, to deckID: String, capsuleOffset: Int = 0) -> Lease {
+	/// `capsule`: the lease's number in the deck's status (`capsuleNumber`); nil keeps the bay's.
+	public static func lease(_ l: Lease, from bayID: String, to deckID: String, capsule: Int? = nil) -> Lease {
 		var r = l
 		r.id = deckID
-		r.capsule += capsuleOffset
+		if let capsule { r.capsule = capsule }
 		r.ssh.host = replaceID(in: l.ssh.host, from: bayID, to: deckID)
 		r.ssh.config = replaceID(in: l.ssh.config, from: bayID, to: deckID)
 		return r
+	}
+
+	/// The deck's number for capsule `n` of a bay, as the deck's status numbers it: the bay's capsules
+	/// come after the `offset` capsules of the bays before it, in the order the bay lists them. A bay's
+	/// own numbers need not start at 0 (a bay can serve only capsule 1), so this is the capsule's
+	/// position in `bayCapsules`, not `n` itself; a number the bay didn't list keeps `offset + n`.
+	public static func capsuleNumber(_ n: Int, offset: Int, bayCapsules: [Int]) -> Int {
+		offset + (bayCapsules.firstIndex(of: n) ?? n)
 	}
 }
 

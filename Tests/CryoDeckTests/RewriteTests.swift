@@ -68,9 +68,18 @@ import Testing
 		#expect(r.createdAt == l.createdAt && r.renewBy == l.renewBy && r.expiresAt == l.expiresAt)
 	}
 
-	@Test func capsuleOffsetShiftsTheCapsuleNumber() {
-		#expect(DeckRewrite.lease(sample(capsule: 1), from: "L1", to: "D2", capsuleOffset: 2).capsule == 3)
+	@Test func theDeckCapsuleNumberReplacesTheBays() {
+		#expect(DeckRewrite.lease(sample(capsule: 1), from: "L1", to: "D2", capsule: 3).capsule == 3)
 		#expect(DeckRewrite.lease(sample(capsule: 1), from: "L1", to: "D2").capsule == 1)
+	}
+
+	@Test func capsuleNumbersFollowTheStatusOrder() {
+		// Two-capsule bays: the second bay's capsule 1 is the deck's 3.
+		#expect(DeckRewrite.capsuleNumber(1, offset: 2, bayCapsules: [0, 1]) == 3)
+		// A bay serving only its capsule 1, after a one-capsule bay: the status lists it as the deck's 1.
+		#expect(DeckRewrite.capsuleNumber(1, offset: 1, bayCapsules: [1]) == 1)
+		// A number the bay didn't list (status not polled yet) falls back to offset + n.
+		#expect(DeckRewrite.capsuleNumber(1, offset: 1, bayCapsules: []) == 2)
 	}
 
 	@Test func aLongerBayIDIsNotHalfReplaced() {

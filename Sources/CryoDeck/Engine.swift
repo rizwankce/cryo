@@ -197,7 +197,7 @@ public actor DeckEngine: BayService {
 						bays[i].status?.capsules[j].lease = lease.id
 					}
 					event("lease \(id) on \(name) (\(lease.id))")
-					return DeckRewrite.lease(lease, from: lease.id, to: id, capsuleOffset: capsuleOffset(i))
+					return DeckRewrite.lease(lease, from: lease.id, to: id, capsule: deckCapsule(lease.capsule, bay: i))
 				}
 			}
 			let left = deadline - now()
@@ -215,8 +215,10 @@ public actor DeckEngine: BayService {
 		return (0..<bays.count).map { (rr + $0) % bays.count }.filter { bays[$0].online && !bays[$0].full && bays[$0].thawed > 0 }
 	}
 
-	private func capsuleOffset(_ i: Int) -> Int {
-		bays[..<i].reduce(0) { $0 + ($1.online ? ($1.status?.capsules.count ?? 0) : 0) }
+	/// Capsule `n` of bay `i` as numbered in `status()`, which lists every bay's capsules in turn.
+	private func deckCapsule(_ n: Int, bay i: Int) -> Int {
+		let offset = bays[..<i].reduce(0) { $0 + ($1.online ? ($1.status?.capsules.count ?? 0) : 0) }
+		return DeckRewrite.capsuleNumber(n, offset: offset, bayCapsules: bays[i].status?.capsules.map(\.n) ?? [])
 	}
 
 	public func lease(_ id: String) async throws -> Lease {
@@ -235,8 +237,8 @@ public actor DeckEngine: BayService {
 	}
 
 	private func rewritten(_ lease: Lease, id: String, mapping m: Mapping) -> Lease {
-		let off = bays.firstIndex { $0.entry.name == m.bay }.map(capsuleOffset) ?? 0
-		return DeckRewrite.lease(lease, from: m.leaseID, to: id, capsuleOffset: off)
+		let capsule = bays.firstIndex { $0.entry.name == m.bay }.map { deckCapsule(lease.capsule, bay: $0) }
+		return DeckRewrite.lease(lease, from: m.leaseID, to: id, capsule: capsule)
 	}
 
 	/// Runs `op` against the bay that owns `id`. A lease the deck doesn't know, a bay that is
