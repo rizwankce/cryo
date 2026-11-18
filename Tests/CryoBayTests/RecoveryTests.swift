@@ -149,8 +149,9 @@ struct RecoveryTests {
 		#expect(throws: BayError.self) { try Cleanup.lockBay(p) }
 		#expect(throws: BayError.self) { try Cleanup.refuseWhileBayRuns(p) }
 		close(fd)
-		#expect(!Cleanup.bayRuns(p))
-		try Cleanup.refuseWhileBayRuns(p)
+		// Not at once: a child another test is spawning right now shares the lock until its exec
+		// drops the close-on-exec fd (and so may a child spawned while a probe holds the file).
+		#expect(eventually { (try? Cleanup.refuseWhileBayRuns(p)) != nil })
 	}
 
 	@Test func interruptedRefreezeRepairs() {
