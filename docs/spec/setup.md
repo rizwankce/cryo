@@ -79,7 +79,7 @@ The installed bay is the LaunchAgent `dev.rizwan.cryo.bay`; stopping it ends eve
 | To | Run |
 |---|---|
 | Stop it | `launchctl bootout gui/$(id -u)/dev.rizwan.cryo.bay` |
-| Restart it | `launchctl kickstart -k gui/$(id -u)/dev.rizwan.cryo.bay` |
+| Restart it | `cryo bay restart` (`--force` with leases running); underneath: `launchctl kickstart -k gui/$(id -u)/dev.rizwan.cryo.bay` |
 | Start it again after a stop | `cryo bay install` (or `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/dev.rizwan.cryo.bay.plist`) |
 | See what it did | `cryo logs` (`-f` to follow), `cryo status` |
 

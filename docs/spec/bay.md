@@ -11,8 +11,8 @@
   throttle), writes stdout and stderr to `~/.cryo/bay.log`. It needs a logged-in GUI session.
 - Logs: a timestamped trace (refills, leases, releases, failures) on stdout, so in `bay.log` for
   the installed bay (`cryo logs`), plus the unified log, subsystem `dev.rizwan.cryo.bay`.
-- Stop or restart the installed bay with `launchctl bootout gui/$(id -u)/dev.rizwan.cryo.bay` or
-  `launchctl kickstart -k gui/$(id -u)/dev.rizwan.cryo.bay`; a foreground `cryo bay start` stops with
+- Restart the installed bay with `cryo bay restart` (refuses while leases run unless `--force`; it runs
+  `launchctl kickstart -k gui/$(id -u)/dev.rizwan.cryo.bay`); stop it with `launchctl bootout gui/$(id -u)/dev.rizwan.cryo.bay`; a foreground `cryo bay start` stops with
   Ctrl-C. A signal shuts the bay down before its VMs stop, so no refill thaws a VM meanwhile.
 - The bay never runs as root and never runs `pfctl`. The root helper (LaunchDaemon `dev.rizwan.cryo.pf`,
   installed by `cryo bay install`) loads the pf anchor and clears stale 10.77 DHCP bindings at

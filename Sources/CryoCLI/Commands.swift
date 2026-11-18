@@ -182,6 +182,7 @@ func statusCommand(_ ctx: CLIContext, _ p: ParsedArgs) throws -> Int32 {
 		try printJSON(ctx, s)
 		return 0
 	}
+	if let note = bayVersionNote(target: ctx.target, bayVersion: s.bay.version) { ctx.say(note) }
 	ctx.say("bay: version \(s.bay.version), image \(s.bay.image), doctor \(s.bay.doctorOK ? "ok" : "failing (run `cryo doctor`)")")
 	if let alert = s.bay.alert { ctx.say("ALERT: \(alert)") }
 	if let blocked = s.bay.blockedBy { ctx.say("capsules frozen until these pass: \(blocked.joined(separator: "; "))") }
@@ -213,6 +214,12 @@ struct RestartingStatus: Codable {
 		var alert: String
 	}
 	var bay: Bay
+}
+
+/// One line when a local bay runs another version than this binary (e.g. after an upgrade); nil for a remote bay or deck.
+func bayVersionNote(target: CryoTarget, bayVersion: String, cliVersion: String = cryoVersion) -> String? {
+	guard case .unix = target.endpoint, bayVersion != cliVersion else { return nil }
+	return "note: the bay runs \(bayVersion), this cryo is \(cliVersion); restart it with `cryo bay restart`"
 }
 
 /// The alert a restarting bay left next to its unix socket, if it's recent (`RestartNote`).

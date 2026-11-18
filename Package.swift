@@ -25,7 +25,7 @@ let package = Package(
 		// `cryo deck`: several bays behind one /v1 endpoint. Builds on macOS and Linux (no CryoBay).
 		.target(name: "CryoDeck", dependencies: ["CryoAPI", "CryoHTTP", "CryoServer", "CryoClient"]),
 		// macOS only: the bay drives Virtualization.framework. Linux builds leave it out.
-		.target(name: "CryoBay", dependencies: ["CryoAPI", "CryoHTTP", "CryoServer"]),
+		.target(name: "CryoBay", dependencies: ["CryoAPI", "CryoHTTP", "CryoServer", "CryoClient"]),
 		.target(
 			name: "CryoCLI",
 			dependencies: [
