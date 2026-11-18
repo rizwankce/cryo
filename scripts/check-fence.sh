@@ -1,7 +1,7 @@
 #!/bin/bash
 # Checks the capsule fence (the pf rules in Sources/CryoBay/Install.swift) from inside a
 # leased guest: DNS and internet work, while the host, the LAN and other capsules stay out of
-# reach. Run on the bay's Mac, against a lease the bay already serves:
+# reach, over IPv4 and IPv6. Run on the bay's Mac, against a lease the bay already serves:
 #   cryo lease --name fence      # prints "L<n> ready ..."
 #   scripts/check-fence.sh L<n>
 #   cryo release L<n>
@@ -58,6 +58,19 @@ for m in "$root"/capsules/*/manifest.json; do
 	expect_blocked "guest -> other capsule's guest 10.77.$n.2:53" "nc -z -G 2 10.77.$n.2 53"
 done
 [ "$others" -gt 0 ] || echo "SKIP  other capsules: no other capsule manifest under $root/capsules"
+
+# IPv6: the host's side of the capsule's bridge has an fe80:: address; nothing may reach it. vmnet's
+# DNS proxy listens there too, so port 53 is open unless the fence drops IPv6.
+bridge=$(ifconfig | awk -v gw="$gw" '/^[a-z]/ {i=$1} $1 == "inet" && $2 == gw {sub(":", "", i); print i}')
+ll=$([ -n "$bridge" ] && ifconfig "$bridge" | awk '$1 == "inet6" && $2 ~ /^fe80:/ {sub("%.*", "", $2); print $2; exit}') || true
+if [ -n "$ll" ]; then
+	expect_blocked "guest -> host bridge $bridge $ll (ping6)" "ping6 -c 2 -i 0.5 $ll%en0"
+	expect_blocked "guest -> host bridge $bridge [$ll]:53" "nc -6 -z -G 2 $ll%en0 53"
+	expect_blocked "guest -> host bridge $bridge [$ll]:7000" "nc -6 -z -G 2 $ll%en0 7000"
+else
+	fail "no fe80:: address on the host bridge for $gw (bridge '${bridge:-?}')"
+fi
+expect_blocked "guest has no global IPv6 address" "ifconfig en0 | awk '\$1 == \"inet6\" && \$2 !~ /^fe80:/' | grep -q ."
 
 if [ "$failed" -ne 0 ]; then echo "fence: FAIL"; exit 1; fi
 echo "fence: PASS"
