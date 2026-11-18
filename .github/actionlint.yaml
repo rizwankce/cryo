@@ -2,3 +2,5 @@ self-hosted-runner:
   # GitHub-hosted macOS 27 image, newer than actionlint's label list.
   labels:
     - xcode-27
+    # A cryo capsule from a cryo bay running cryo-ci (cryo-<image tag>).
+    - cryo-xcode-27.2

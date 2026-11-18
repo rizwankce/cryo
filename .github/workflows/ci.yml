@@ -132,3 +132,25 @@ jobs:
           codesign -f -s - --entitlements scripts/cryo.entitlements .build/release/cryo
           codesign -d --entitlements - .build/release/cryo 2>&1 | grep -q com.apple.security.virtualization
           .build/release/cryo version
+
+  # The same checks on a cryo capsule: cryo's own CI on a cryo bay. Pushes to main only, so pull
+  # requests (including forks) never run on the bay, and a busy or offline bay never blocks a PR.
+  macos-bay:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: cryo-xcode-27.2
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Identify toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+      - run: swift test
+      - name: Release build, signed with the virtualization entitlement
+        run: |
+          swift build -c release --product cryo
+          codesign -f -s - --entitlements scripts/cryo.entitlements .build/release/cryo
+          codesign -d --entitlements - .build/release/cryo 2>&1 | grep -q com.apple.security.virtualization
+          .build/release/cryo version
