@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# Prepares a fresh Amp orb (Debian, x86_64) to build, test and lint Cryo on Linux:
+# the Swift toolchain CI pins (with swift-format), shellcheck, actionlint, and a warm .build.
+# Idempotent: a stale snapshot skips everything already installed.
+set -euo pipefail
+
+SWIFT_VERSION=6.4.2
+ACTIONLINT_VERSION=1.7.7
+SWIFT_DIR=/opt/swift-$SWIFT_VERSION
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+step() {
+	local name=$1 start=$SECONDS
+	shift
+	echo "==> $name"
+	"$@"
+	echo "<== $name ($((SECONDS - start))s)"
+}
+
+install_packages() {
+	# Swift's Linux runtime and linker needs, plus the lint tools.
+	local packages=(
+		binutils gcc g++ libc6-dev libcurl4-openssl-dev libedit2 libncurses-dev libsqlite3-0
+		libxml2-dev pkg-config tzdata zlib1g-dev gnupg ca-certificates curl shellcheck
+	)
+	local missing=()
+	for p in "${packages[@]}"; do
+		dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q 'install ok installed' || missing+=("$p")
+	done
+	if ((${#missing[@]})); then
+		sudo apt-get update -qq
+		sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends "${missing[@]}"
+	else
+		echo "all packages already installed"
+	fi
+}
+
+install_swift() {
+	if [[ -x $SWIFT_DIR/usr/bin/swift ]]; then
+		echo "Swift $SWIFT_VERSION already in $SWIFT_DIR"
+	else
+		# Match the orb's OS to a swift.org build: debian13, debian12, ...
+		local platform
+		# shellcheck disable=SC1091
+		platform="$(. /etc/os-release && echo "$ID$VERSION_ID")"
+		local name=swift-$SWIFT_VERSION-RELEASE-$platform
+		local url=https://download.swift.org/swift-$SWIFT_VERSION-release/$platform/swift-$SWIFT_VERSION-RELEASE/$name.tar.gz
+		local tmp
+		tmp="$(mktemp -d)"
+		curl -fsSL --retry 3 -o "$tmp/swift.tar.gz" "$url"
+		curl -fsSL --retry 3 -o "$tmp/swift.tar.gz.sig" "$url.sig"
+		curl -fsSL --retry 3 -o "$tmp/keys.asc" https://www.swift.org/keys/all-keys.asc
+		mkdir -m 700 "$tmp/gnupg"
+		GNUPGHOME="$tmp/gnupg" gpg --batch --quiet --import "$tmp/keys.asc"
+		GNUPGHOME="$tmp/gnupg" gpg --batch --quiet --verify "$tmp/swift.tar.gz.sig" "$tmp/swift.tar.gz"
+		sudo rm -rf "$SWIFT_DIR.partial"
+		sudo mkdir -p "$SWIFT_DIR.partial"
+		sudo tar -xzf "$tmp/swift.tar.gz" -C "$SWIFT_DIR.partial" --strip-components=1
+		sudo rm -rf "$SWIFT_DIR"
+		sudo mv "$SWIFT_DIR.partial" "$SWIFT_DIR"
+		rm -rf "$tmp"
+	fi
+	# Every process (Amp, services, non-login shells) finds swift on the default PATH.
+	for tool in "$SWIFT_DIR"/usr/bin/*; do
+		local link
+		link=/usr/local/bin/$(basename "$tool")
+		[[ "$(readlink "$link" 2>/dev/null)" == "$tool" ]] || sudo ln -sfn "$tool" "$link"
+	done
+	swift --version
+}
+
+install_actionlint() {
+	if actionlint -version 2>/dev/null | grep -qx "$ACTIONLINT_VERSION"; then
+		echo "actionlint $ACTIONLINT_VERSION already installed"
+		return
+	fi
+	local tmp
+	tmp="$(mktemp -d)"
+	curl -fsSL --retry 3 -o "$tmp/actionlint.tar.gz" \
+		"https://github.com/rhysd/actionlint/releases/download/v$ACTIONLINT_VERSION/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+	tar -xzf "$tmp/actionlint.tar.gz" -C "$tmp" actionlint
+	sudo install -m 0755 "$tmp/actionlint" /usr/local/bin/actionlint
+	rm -rf "$tmp"
+}
+
+# Compile everything `swift test` needs so the snapshot carries a warm .build.
+warm_build() {
+	swift build --build-tests
+}
+
+step "system packages" install_packages
+step "Swift $SWIFT_VERSION" install_swift
+step "actionlint $ACTIONLINT_VERSION" install_actionlint
+step "swift build --build-tests" warm_build
