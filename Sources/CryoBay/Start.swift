@@ -42,8 +42,8 @@ enum BayStart {
 			// refill waking from its backoff, or one after a release, could thaw a VM while they stop
 			// and leave it and its vmnet subnet behind.
 			CapsuleVM.beforeSignalExit = { await bay.shutdown(within: .seconds(10)) }
-			// No VM runs and no lease is held when this fires (RestartPolicy), so there's nothing to stop;
-			// `shutdown()` here would wait on the refill task that calls it.
+			// No lease is held when this fires (RestartPolicy). Either no VM runs, or the bay has already
+			// stopped them (`afterSharingRestart`); `shutdown()` here would wait on the refill task that calls it.
 			let note = paths.root.appending(path: RestartNote.fileName)
 			bay.onRestartNeeded = {
 				let alert = bay.subnetAlert ?? "capsule subnets taken; run `\(SubnetAlert.command)`"

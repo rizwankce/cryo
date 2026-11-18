@@ -48,6 +48,18 @@ enum RestartPolicy {
 		capsules > 0 && lastFailures.count == capsules && lastFailures.values.allSatisfy { $0 == .subnet }
 			&& liveVMs == 0 && leases == 0
 	}
+
+	/// The other case: some capsule is stuck on its subnet and InternetSharing has been killed or
+	/// restarted since it got stuck (`sharingAtFailure` vs `sharingNow`, its pid or nil), so the
+	/// subnet is likely free but this process can't create it again. A capsule that still works
+	/// doesn't keep the bay from restarting (its network went with InternetSharing too), but a lease
+	/// does: the bay waits for its leases to end. Its running VMs are stopped before it exits.
+	static func afterSharingRestart(lastFailures: [Int: FailureKind], sharingAtFailure: Int32??, sharingNow: Int32?, leases: Int)
+		-> Bool
+	{
+		guard lastFailures.values.contains(.subnet), let before = sharingAtFailure else { return false }
+		return before != sharingNow && leases == 0
+	}
 }
 
 /// What `status` and `doctor` tell a person when capsules are stuck on taken subnets.
@@ -59,7 +71,7 @@ enum SubnetAlert {
 		guard !stuck.isEmpty else { return nil }
 		let which = stuck.sorted().map(String.init).joined(separator: ", ")
 		return
-			"capsule \(which): vmnet subnet taken (a cryo process was killed while its VMs ran); run `\(command)` on this Mac (the bay picks the subnets up within a minute), or reboot"
+			"capsule \(which): vmnet subnet taken (a cryo process was killed while its VMs ran); run `\(command)` on this Mac (the bay then restarts itself within a minute, once no lease is held), or reboot"
 	}
 }
 
@@ -226,6 +238,14 @@ struct VMNetUnavailable: Error, CustomStringConvertible {
 	let status: UInt32
 	var description: String {
 		"vmnet network for 10.77.\(subnet).1/24: \(status). If a cryo process was killed while its VM ran, InternetSharing still holds the subnet until it idles out (minutes); sudo killall InternetSharing frees it now"
+	}
+}
+
+/// InternetSharing's pid, or nil when it doesn't run (it holds the capsules' vmnet subnets).
+enum InternetSharing {
+	static func pid() async -> Int32? {
+		let r = await runProcess("/usr/bin/pgrep", ["-x", "InternetSharing"], timeout: 5)
+		return r.status == 0 ? r.out.split(separator: "\n").first.flatMap { Int32($0.trimmingCharacters(in: .whitespaces)) } : nil
 	}
 }
 
