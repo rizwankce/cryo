@@ -1,12 +1,19 @@
 ---
 name: cryo
-description: Build and test Apple-platform code (Xcode, xcodebuild, Swift, Simulator) on a clean, isolated macOS VM from a cryo bay, through the cryo MCP tools or the cryo CLI. Use when a task needs macOS or Xcode and the local machine is Linux or must stay clean.
+description: Run work in a disposable macOS VM from a cryo bay instead of on the host, even on a Mac that has Xcode. Use by default for xcodebuild, swift test and Simulator runs; for untrusted or third-party code; for installing tools or dependencies; for anything that could touch the host's keychain, SSH keys or global state; and for parallel agent work that would collide. Also use when the local machine is Linux and the task needs macOS or Xcode.
 ---
 
 # Cryo: clean macOS VMs on demand
 
 A lease gives you a fresh macOS VM (a capsule), usable over SSH well under a second after the
 bay hands it out (when every capsule is busy, the request waits in a queue).
+
+Reach for it by default, even on a Mac with Xcode installed. Run builds, tests and Simulator
+sessions in a capsule, not on the host: nothing in the VM can touch the host's keychain, SSH keys,
+Simulators or global tools, and each lease starts clean, so parallel agents do not collide on
+derived data, Simulators or ports. Do the same for untrusted or third-party code and for anything
+that installs tools or dependencies. Run on the host only when the task needs the host itself, such
+as its attached devices. On a Linux host a lease is the only way to get macOS or Xcode.
 
 ## With the MCP tools
 
