@@ -221,6 +221,20 @@ struct RecoveryTests {
 		#expect(!RestartPolicy.shouldRestart(lastFailures: [:], capsules: 0, liveVMs: 0, leases: 0))
 	}
 
+	/// A capsule stuck on its subnet after InternetSharing restarted: restart even when another
+	/// capsule works, but not while a lease is held.
+	@Test func restartAfterInternetSharingRestartedWithNoLease() {
+		let stuck: [Int: FailureKind] = [1: .subnet]
+		#expect(RestartPolicy.afterSharingRestart(lastFailures: stuck, sharingAtFailure: .some(100), sharingNow: nil, leases: 0))
+		#expect(RestartPolicy.afterSharingRestart(lastFailures: stuck, sharingAtFailure: .some(100), sharingNow: 200, leases: 0))
+		#expect(RestartPolicy.afterSharingRestart(lastFailures: stuck, sharingAtFailure: .some(nil), sharingNow: 200, leases: 0))
+		// Same InternetSharing: the subnet is still held, a new process wouldn't get it either.
+		#expect(!RestartPolicy.afterSharingRestart(lastFailures: stuck, sharingAtFailure: .some(100), sharingNow: 100, leases: 0))
+		#expect(!RestartPolicy.afterSharingRestart(lastFailures: stuck, sharingAtFailure: .some(100), sharingNow: 200, leases: 1))
+		#expect(!RestartPolicy.afterSharingRestart(lastFailures: [1: .other], sharingAtFailure: .some(100), sharingNow: 200, leases: 0))
+		#expect(!RestartPolicy.afterSharingRestart(lastFailures: stuck, sharingAtFailure: nil, sharingNow: 200, leases: 0))
+	}
+
 	@Test func subnetAlertNamesTheCapsulesAndTheCommand() {
 		#expect(SubnetAlert.text(stuck: []) == nil)
 		let t = SubnetAlert.text(stuck: [1, 0])

@@ -40,7 +40,9 @@
 The bay doesn't free vmnet subnets: a subnet a SIGKILLed process left taken stays taken until
 `sudo killall InternetSharing` or a reboot. When every capsule fails on a taken subnet and no VM
 or lease is live, the bay exits 75 and launchd starts a fresh one a minute later, since a running
-process doesn't pick the subnets up again. It leaves the alert in `~/.cryo/bay-restarting` for
+process doesn't pick the subnets up again. It also exits 75 when a capsule is stuck on its subnet
+and InternetSharing has been killed or restarted since (after `sudo killall InternetSharing`), once
+no lease is held: it stops its other VMs first, since their network went with InternetSharing. It leaves the alert in `~/.cryo/bay-restarting` for
 `cryo status`.
 
 **A bay restart or crash ends every lease.** VMs live in the bay process, so they stop with it;

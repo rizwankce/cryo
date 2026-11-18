@@ -138,6 +138,9 @@ public final class Bay: BayService {
 	private var retries: [Int: Task<Void, Never>] = [:]
 	/// Each capsule's last refill failure, cleared when it refills (for `RestartPolicy`).
 	private var lastFailures: [Int: FailureKind] = [:]
+	/// InternetSharing's pid (nil: not running) when a capsule first got stuck on its subnet; unset
+	/// while none is stuck (`RestartPolicy.afterSharingRestart`).
+	private var sharingAtSubnetFailure: Int32?? = nil
 	/// The person-facing alert for capsules whose last refill failed on a taken subnet.
 	var subnetAlert: String? {
 		SubnetAlert.text(stuck: lastFailures.filter { $0.value == .subnet }.map(\.key))
@@ -334,6 +337,7 @@ public final class Bay: BayService {
 					)
 					if failures > 0 { BayTrace.note("capsule \(c.n) recovered after \(failures) failed refill(s)") }
 					self.lastFailures[c.n] = nil
+					if !self.lastFailures.values.contains(.subnet) { self.sharingAtSubnetFailure = nil }
 					self.hostProblem = nil
 					retry = nil
 					break
@@ -345,6 +349,26 @@ public final class Bay: BayService {
 					BayTrace.note("capsule \(c.n) refill failed (\(failures) in a row), next try in \(delay) s: \(String(describing: error))")
 					if kind == .vmLimit { await self.vmLimitRefused(failures: failures) }
 					self.lastFailures[c.n] = kind
+					if kind == .subnet {
+						let now = await InternetSharing.pid()
+						if self.sharingAtSubnetFailure == nil { self.sharingAtSubnetFailure = .some(now) }
+						if let restart = self.onRestartNeeded,
+							RestartPolicy.afterSharingRestart(
+								lastFailures: self.lastFailures, sharingAtFailure: self.sharingAtSubnetFailure, sharingNow: now,
+								leases: self.capsules.filter { $0.state == .leased }.count)
+						{
+							BayTrace.note(
+								"capsule \(c.n)'s subnet is taken and InternetSharing restarted since; stopping the VMs and exiting so launchd starts a fresh bay (vmnet doesn't reconnect in this process)"
+							)
+							self.onRestartNeeded = nil
+							// Not awaited here: shutdown() waits for this refill task to end.
+							Task { @MainActor in
+								await self.shutdown(within: .seconds(15))
+								await restart()
+							}
+							return
+						}
+					}
 					if failures >= RetryPolicy.quickTries, let restart = self.onRestartNeeded,
 						RestartPolicy.shouldRestart(
 							lastFailures: self.lastFailures, capsules: self.capsules.count, liveVMs: Cleanup.liveVMs,
