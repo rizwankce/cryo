@@ -42,6 +42,17 @@
           │  (per-lease key; the agent never sees the capsule's IP)
 ```
 
+## Several Macs
+
+```
+ clients ── CRYO_URL=http://deck.lan:7400 ──▶ cryo deck ──┬──▶ bay on mini-1 (2 capsules)
+ (CLI, MCP, CI)                               (any Mac or   ├──▶ bay on mini-2 (2 capsules)
+                                               Linux box)   └──▶ bay on studio (2 capsules)
+```
+
+The deck serves the same `/v1` API, picks a bay with a free capsule (queuing when none is free),
+and relays `ssh`. Its leases are `D<n>` and live in its memory only. Each bay works as above. [spec/deck.md](spec/deck.md).
+
 ## One lease
 
 ```

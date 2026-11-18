@@ -1,14 +1,15 @@
 import CryoAPI
+import CryoServer
 import Foundation
 
-/// `cryo bay start [--listen :7477]`: serve the API, refill the capsules (once `cryo doctor`
+/// `cryo bay start [--listen :7477]` (default: `listen` in config.toml): serve the API, refill the capsules (once `cryo doctor`
 /// passes) behind it, run until a signal.
 /// A signal stops every VM before exit; a restart ends every lease (bay.md), and the next
 /// start clears stale lease folders and the stale socket.
 enum BayStart {
 	@MainActor
 	static func run(_ args: [String], paths: BayPaths, out: BayCommand.Writer) async throws -> Int32 {
-		var listen: (host: String, port: Int)?
+		var flag: (host: String, port: Int)?
 		var i = 0
 		while i < args.count {
 			switch args[i] {
@@ -17,12 +18,15 @@ enum BayStart {
 				guard i < args.count, let l = BayServer.parseListen(args[i]) else {
 					throw BayError("--listen takes :PORT, PORT or HOST:PORT")
 				}
-				listen = l
+				flag = l
 			default:
 				throw BayError("usage: cryo bay start [--listen :7477]")
 			}
 			i += 1
 		}
+
+		// The flag wins over config.toml's `listen`; a bad config fails the start before any VM does.
+		let listen = try BayConfig.load(paths.config).listener(flag: flag)
 
 		// The bay's trace (refills, leases, releases, failures) goes to stdout with a timestamp as
 		// well as the unified log, so a terminal or LaunchAgent log shows what happened.
@@ -56,7 +60,7 @@ enum BayStart {
 			// capsule whose guest doesn't answer (minutes of retries) doesn't hide the other.
 			try await bay.start(waitForRefills: false)
 			let token = listen == nil ? nil : try BayToken.create(paths, rotate: false)
-			let server = BayServer(service: bay, paths: paths)
+			let server = BayServer(service: bay, socketPath: paths.socket.path)
 			try server.start(listen: listen, token: token)
 			try? FileManager.default.removeItem(at: note)
 			out(String(format: "serving %@ after %.1f s; thawing the capsules\n", paths.socket.path, Date().timeIntervalSince(t0)))

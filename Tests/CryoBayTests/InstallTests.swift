@@ -89,4 +89,46 @@ import Testing
 		#expect(try !BayInstall.prepareHome(paths))
 		#expect(try BayConfig.load(paths.config).image == "abc")
 	}
+
+	private func tempPaths() -> BayPaths {
+		BayPaths(root: FileManager.default.temporaryDirectory.appending(path: "cryo-install-\(UUID().uuidString)", directoryHint: .isDirectory))
+	}
+
+	@Test func installListenWritesTheKeyToANewConfig() throws {
+		let paths = tempPaths()
+		defer { try? FileManager.default.removeItem(at: paths.root) }
+		#expect(try BayInstall.prepareHome(paths, listen: ":7477"))
+		#expect(try BayConfig.load(paths.config).listen == ":7477")
+	}
+
+	@Test func installListenSetsTheKeyAndKeepsOtherSettings() throws {
+		let paths = tempPaths()
+		defer { try? FileManager.default.removeItem(at: paths.root) }
+		_ = try BayInstall.prepareHome(paths)
+		try "image = \"abc\"\ncapsules = 1\nlisten = \":1111\"\n".write(to: paths.config, atomically: true, encoding: .utf8)
+		#expect(try !BayInstall.prepareHome(paths, listen: "10.0.0.2:7477"))
+		let c = try BayConfig.load(paths.config)
+		#expect(c.listen == "10.0.0.2:7477")
+		#expect(c.image == "abc")
+		#expect(c.capsules == 1)
+	}
+
+	@Test func installWithoutListenKeepsAnExistingValue() throws {
+		let paths = tempPaths()
+		defer { try? FileManager.default.removeItem(at: paths.root) }
+		_ = try BayInstall.prepareHome(paths, listen: ":7477")
+		let before = try String(contentsOf: paths.config, encoding: .utf8)
+		#expect(try !BayInstall.prepareHome(paths))
+		#expect(try String(contentsOf: paths.config, encoding: .utf8) == before)
+		#expect(try BayConfig.load(paths.config).listen == ":7477")
+	}
+
+	@Test func installArgumentsTakeOnlyAValidListen() throws {
+		#expect(try BayInstall.parseInstallArgs([]) == nil)
+		#expect(try BayInstall.parseInstallArgs(["--listen", ":7477"]) == ":7477")
+		#expect(try BayInstall.parseInstallArgs(["--listen", "7477"]) == "7477")
+		#expect(throws: BayError.self) { try BayInstall.parseInstallArgs(["--listen"]) }
+		#expect(throws: BayError.self) { try BayInstall.parseInstallArgs(["--listen", "x:y"]) }
+		#expect(throws: BayError.self) { try BayInstall.parseInstallArgs(["--bogus"]) }
+	}
 }

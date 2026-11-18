@@ -1,4 +1,5 @@
 import CryoHTTP
+import CryoServer
 import Foundation
 
 /// `cryo bay install` / `cryo bay uninstall` (docs/spec/setup.md "Flow"): `~/.cryo` with its config,
@@ -105,28 +106,48 @@ public enum BayInstall {
 		return try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
 	}
 
-	/// Creates `~/.cryo` (no-Spotlight) and writes a default config.toml unless one exists. Returns
-	/// whether it wrote the config.
+	/// Creates `~/.cryo` (no-Spotlight) and writes a default config.toml unless one exists. With
+	/// `listen`, sets that key in the config (an existing one keeps its other settings). Without it, an
+	/// existing config is left alone, `listen` included. Returns whether it created the config.
 	@discardableResult
-	static func prepareHome(_ paths: BayPaths) throws -> Bool {
+	static func prepareHome(_ paths: BayPaths, listen: String? = nil) throws -> Bool {
 		try paths.prepare()
-		guard !FileManager.default.fileExists(atPath: paths.config.path) else { return false }
-		try BayConfig().save(paths.config)
-		return true
+		let exists = FileManager.default.fileExists(atPath: paths.config.path)
+		guard !exists || listen != nil else { return false }
+		var config = exists ? try BayConfig.load(paths.config) : BayConfig()
+		if let listen { config.listen = listen }
+		try config.save(paths.config)
+		return !exists
+	}
+
+	/// `install`'s arguments: only `--listen :PORT | PORT | HOST:PORT`.
+	static func parseInstallArgs(_ args: [String]) throws -> String? {
+		let usage = BayError("usage: cryo bay install [--listen :7477]")
+		var listen: String?
+		var i = 0
+		while i < args.count {
+			guard args[i] == "--listen" else { throw usage }
+			i += 1
+			guard i < args.count, BayServer.parseListen(args[i]) != nil else { throw BayError("--listen takes :PORT, PORT or HOST:PORT") }
+			listen = args[i]
+			i += 1
+		}
+		return listen
 	}
 
 	// MARK: Commands
 
 	@MainActor
 	static func install(_ args: [String], paths: BayPaths, out: BayCommand.Writer) async throws -> Int32 {
-		guard args.isEmpty else { throw BayError("usage: cryo bay install") }
+		let listen = try parseInstallArgs(args)
 		guard let executable = Bundle.main.executablePath else { throw BayError("can't tell where this cryo binary is") }
 		let binary = launchAgentExecutablePath(executable)
 		if let folder = HostDoctor.protectedFolder(holding: binary, home: FileManager.default.homeDirectoryForCurrentUser.path) {
 			throw BayError("\(binary) is under ~/\(folder), where vmnet refuses to run; install it elsewhere first (scripts/install.sh uses ~/.cryo/bin)")
 		}
 
-		if try prepareHome(paths) { out("wrote \(paths.config.path)\n") }
+		if try prepareHome(paths, listen: listen) { out("wrote \(paths.config.path)\n") }
+		if let listen { out("network listener: listen = \"\(listen)\" in \(paths.config.path) (token: cryo bay token)\n") }
 		out("ready: \(paths.root.path) (excluded from Spotlight)\n")
 
 		// Root helper before the agent, so the fence is up before any capsule thaws.

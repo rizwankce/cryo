@@ -69,11 +69,15 @@ public enum BayCommand {
 			args, paths, out, _ in
 			try BayToken.command(args, paths: paths, out: out)
 		},
-		"start": Sub(summary: "refill the capsules and serve the API: [--listen :7477]", usage: "[--listen :7477]", flags: ["--listen"]) {
-			args, paths, out, _ in
+		"start": Sub(
+			summary: "refill the capsules and serve the API: [--listen :7477] (else config listen)", usage: "[--listen :7477]", flags: ["--listen"]
+		) { args, paths, out, _ in
 			try await BayStart.run(args, paths: paths, out: out)
 		},
-		"install": Sub(summary: "set up this Mac: ~/.cryo, the bay's LaunchAgent, the pf root helper (one sudo)") { args, paths, out, _ in
+		"install": Sub(
+			summary: "set up this Mac: ~/.cryo, the bay's LaunchAgent, the pf root helper (one sudo); [--listen :7477]", usage: "[--listen :7477]",
+			flags: ["--listen"]
+		) { args, paths, out, _ in
 			try await BayInstall.install(args, paths: paths, out: out)
 		},
 		"uninstall": Sub(summary: "remove the LaunchAgent and the root helper; keeps ~/.cryo") { args, paths, out, _ in

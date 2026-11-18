@@ -17,8 +17,10 @@
 - The bay never runs as root and never runs `pfctl`. The root helper (LaunchDaemon `dev.rizwan.cryo.pf`,
   installed by `cryo bay install`) loads the pf anchor and clears stale 10.77 DHCP bindings at
   every boot.
-- **Network listener:** `cryo bay start --listen :7477` ([api.md](api.md)). The installed
-  LaunchAgent doesn't pass `--listen`; run the bay by hand to use it.
+- **Network listener:** off unless `listen` is set in config.toml (below) or `cryo bay start
+  --listen :7477` is given; the flag wins ([api.md](api.md)). The installed LaunchAgent passes
+  no flag, so `cryo bay install --listen :7477` writes `listen` for it; a later `cryo bay install`
+  without the flag keeps it.
 
 ## Start-up
 
@@ -80,6 +82,7 @@ value`, `#` comments; a missing file or key keeps the default, an unknown key is
 | `max_lease_s` | integer > 0 | 86400 | Maximum lease length (capped at 86400) |
 | `wait_default_s` | integer > 0 | 600 | Queue wait of a request that doesn't send `wait_s` |
 | `capsules` | integer 1–2 | 2 | Capsules on this Mac (Apple's limit is 2) |
+| `listen` | quoted string | none | Network listener: `":7477"`, `"7477"` (all interfaces) or `"host:port"`; checked like `--listen`; the flag wins |
 | `ignore_doctor` | `true`/`false` | `false` | Thaw even when checks that block thawing fail (a dev Mac) |
 
 Everything else is fixed by [capsule.md](capsule.md).

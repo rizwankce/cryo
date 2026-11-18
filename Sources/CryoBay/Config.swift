@@ -1,3 +1,4 @@
+import CryoServer
 import Foundation
 
 /// `~/.cryo/config.toml` (docs/spec/bay.md "Config"). A flat `key = value` subset of TOML: strings
@@ -16,6 +17,9 @@ public struct BayConfig: Sendable, Equatable {
 	/// Thaw even when host checks that gate thawing fail (docs/spec/setup.md). For a dev Mac that
 	/// isn't set up as a host; `cryo doctor` and `/v1/status` still report the failures.
 	public var ignoreDoctor = false
+	/// Where the bay's network listener binds, as written (`:7477`, `7477` or `host:port`); nil = no
+	/// listener. `cryo bay start --listen` wins over it. Always valid once parsed.
+	public var listen: String?
 
 	public init() {}
 
@@ -42,6 +46,15 @@ public struct BayConfig: Sendable, Equatable {
 					throw BayError("config.toml line \(n + 1): image must be a quoted string")
 				}
 				c.image = String(value.dropFirst().dropLast())
+			case "listen":
+				guard value.count >= 2, value.hasPrefix("\""), value.hasSuffix("\"") else {
+					throw BayError("config.toml line \(n + 1): listen must be a quoted string (:PORT, PORT or HOST:PORT)")
+				}
+				let v = String(value.dropFirst().dropLast())
+				guard BayServer.parseListen(v) != nil else {
+					throw BayError("config.toml line \(n + 1): listen takes :PORT, PORT or HOST:PORT")
+				}
+				c.listen = v
 			case "idle_timeout_s": c.idleTimeoutS = try int()
 			case "max_lease_s": c.maxLeaseS = try int()
 			case "wait_default_s": c.waitDefaultS = try int()
@@ -74,8 +87,14 @@ public struct BayConfig: Sendable, Equatable {
 		lines.append("max_lease_s = \(maxLeaseS)")
 		lines.append("wait_default_s = \(waitDefaultS)")
 		lines.append("capsules = \(capsules)")
+		if let listen { lines.append("listen = \"\(listen)\"") }
 		if ignoreDoctor { lines.append("ignore_doctor = true") }
 		return lines.joined(separator: "\n") + "\n"
+	}
+
+	/// The listener to bind: the `--listen` flag's value when given, else `listen` from the config.
+	public func listener(flag: (host: String, port: Int)?) -> (host: String, port: Int)? {
+		flag ?? listen.flatMap(BayServer.parseListen)
 	}
 
 	public func save(_ url: URL) throws {

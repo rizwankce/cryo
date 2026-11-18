@@ -9,8 +9,8 @@ One Swift codebase shared with the bay (API types shared).
 
 | Build | Contains |
 |---|---|
-| macOS | CLI, `cryo bay`, `cryo image`, `cryo doctor`, `cryo logs`, `cryo ci`, `cryo mcp` |
-| Linux | CLI, `cryo mcp` (static binary from Swift's static Linux SDK; keep to a minimal Foundation subset to stay small) |
+| macOS | CLI, `cryo deck`, `cryo bay`, `cryo image`, `cryo doctor`, `cryo logs`, `cryo ci`, `cryo mcp` |
+| Linux | CLI, `cryo deck`, `cryo mcp` (static binary from Swift's static Linux SDK; keep to a minimal Foundation subset to stay small) |
 
 ## Commands
 
@@ -26,11 +26,23 @@ cryo mcp                                MCP server over stdio
 cryo version                            also --version
 cryo help [command]                     also `cryo <command> --help`
 
+Both builds (several Macs behind one endpoint, see deck.md):
+cryo deck add <name> <url> <token>      add a bay (checked first)
+cryo deck rm <name>                     remove a bay
+cryo deck ls [--json]                   bays and their state (asks the bays; no deck needed)
+cryo deck token [--rotate]              the clients' bearer token
+cryo deck start [--listen :7400]        run the deck in this terminal (Ctrl-C stops it)
+cryo deck install [--listen :7400]      run it at login (LaunchAgent or systemd user unit);
+                                        --listen saves the listener in deck.toml
+cryo deck uninstall                     remove it
+
 macOS bay only:
 cryo doctor [--fix]                     host checks (host only when no bay runs)
 cryo logs [-n N] [-f]                   end of the bay's log (default 50 lines; -f follows)
 cryo bay start [--listen :7477]         run the bay in this terminal (Ctrl-C stops it)
-cryo bay install | uninstall            LaunchAgent dev.rizwan.cryo.bay + pf root helper (one sudo)
+cryo bay install [--listen :7477]       LaunchAgent dev.rizwan.cryo.bay + pf root helper (one sudo);
+                                        --listen saves the network listener in config.toml
+cryo bay uninstall                      removes both, keeps ~/.cryo
 cryo bay token [--rotate]               the network listener's bearer token
 cryo bay help                           every bay subcommand, including the debug ones below
 cryo image build|ls|use|rm              golden images (image.md)
@@ -45,6 +57,13 @@ cryo ci …                               runs cryo-ci, a separate program: GitH
   (stdin/stdout piped to the capsule's sshd through `/v1/leases/{id}/connect`).
 - **`ls`:** forgets local keys, known_hosts and ssh_config blocks only for leases of the bay it
   listed (`~/.cryo/lease-bays/<id>` records each lease's bay) that the bay no longer has.
+- **`status`:** against a deck it also lists each bay (name, online or offline, capsule counts,
+  version, url). `image` there is `-` with no bay online and `mixed` when bays differ.
+- **`deck`:** runs a deck: one `/v1` endpoint over several bays, on a trusted LAN or VPN
+  ([deck.md](deck.md)). Leases through it are `D<n>`; `--folder` is refused. It reads `deck.toml`
+  only at start, so restart it after `deck add`, `rm` or `token --rotate`.
+- **`release`:** if the bay answers `404`, the local key files go anyway. A deck answers `410
+  lease_lost` for a lease it lost; then `cryo ls` cleans up.
 - **`status --json`:** when no bay answers but one left a restart note
   (`~/.cryo/bay-restarting`), prints `{"bay": {"state": "restarting", "alert": "…"}}` and exits 1.
 - **`logs`:** prints `$CRYO_HOME/bay.log`, else `~/.cryo/bay.log`: what the installed bay writes. A
@@ -65,9 +84,9 @@ cryo ci …                               runs cryo-ci, a separate program: GitH
 
 | Variable | Read by | Meaning |
 |---|---|---|
-| `CRYO_URL` | every client command | Bay to talk to: `unix:///path`, `unix://~/path` or `http://host[:7477]` (default `unix://~/.cryo/bay.sock`; `https://` refused, no TLS in v1) |
-| `CRYO_TOKEN` | every client command | Bearer token for a network listener |
-| `CRYO_HOME` | `cryo bay …`, `cryo image …`, `cryo logs`, `doctor` | Bay root instead of `~/.cryo` (tests, side-by-side bays; the LaunchAgent sets it) |
+| `CRYO_URL` | every client command | Bay or deck to talk to: `unix:///path`, `unix://~/path` or `http://host[:7477]` (default `unix://~/.cryo/bay.sock`; `https://` refused, no TLS in v1) |
+| `CRYO_TOKEN` | every client command | Bearer token for a network listener (a bay's, or the deck's) |
+| `CRYO_HOME` | `cryo bay …`, `cryo deck …`, `cryo image …`, `cryo logs`, `doctor` | Bay root instead of `~/.cryo` (tests, side-by-side bays; the LaunchAgent sets it) |
 | `GITHUB_TOKEN` | `cryo-ci github` | Wins over the Keychain token (cryo-ci) |
 | `CRYO_FORCE_FALLBACK` | `cryo bay start` | Debug: skip every restore and cold boot |
 | `CRYO_VERIFY_MS` | `cryo bay freeze`, `cryo image use` | Debug: the freeze verify's first-SSH limit (default 1000 ms) |

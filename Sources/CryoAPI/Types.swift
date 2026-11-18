@@ -220,6 +220,26 @@ public struct Status: Codable, Sendable, Equatable {
 		}
 	}
 
+	/// A bay as a deck sees it (`cryo deck`): its own capsule numbers, `image` and `version` nil
+	/// while it is offline.
+	public struct DeckBay: Codable, Sendable, Equatable {
+		public var name: String
+		public var url: String
+		public var online: Bool
+		public var capsules: [Capsule]
+		public var image: String?
+		public var version: String?
+
+		public init(name: String, url: String, online: Bool, capsules: [Capsule] = [], image: String? = nil, version: String? = nil) {
+			self.name = name
+			self.url = url
+			self.online = online
+			self.capsules = capsules
+			self.image = image
+			self.version = version
+		}
+	}
+
 	public static let doctorOK = "ok"
 	public static let doctorFailing = "failing"
 
@@ -228,12 +248,16 @@ public struct Status: Codable, Sendable, Equatable {
 	public var queue: Int
 	/// Added within v1: older bays omit it, so clients must handle nil.
 	public var health: Health?
+	/// Only a deck sends it: one entry per bay behind it. Added within v1: clients that don't
+	/// know it ignore it, and a bay never sets it.
+	public var bays: [DeckBay]?
 
-	public init(bay: Bay, capsules: [Capsule], queue: Int, health: Health? = nil) {
+	public init(bay: Bay, capsules: [Capsule], queue: Int, health: Health? = nil, bays: [DeckBay]? = nil) {
 		self.bay = bay
 		self.capsules = capsules
 		self.queue = queue
 		self.health = health
+		self.bays = bays
 	}
 }
 

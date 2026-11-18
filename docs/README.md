@@ -10,3 +10,4 @@
 - [spec/capsule.md](spec/capsule.md): what one capsule is: states, network, files, guest contract.
 - [spec/api.md](spec/api.md): the bay's HTTP API.
 - [spec/cli.md](spec/cli.md): the `cryo` commands, the MCP tools and the agent skill.
+- [spec/deck.md](spec/deck.md): `cryo deck`: several Macs' bays behind one endpoint.

@@ -1,4 +1,5 @@
 import CryoAPI
+import CryoHTTP
 import Foundation
 
 /// The contract between the bay's API server (`Server.swift`, docs/spec/api.md) and the part that
@@ -29,6 +30,25 @@ public protocol BayService: AnyObject, Sendable {
 	/// (cli.md "Keeping a lease alive"). Opened/closed are balanced per connection.
 	func connectionOpened(_ id: String) async
 	func connectionClosed(_ id: String) async
+	/// Where a `connect` stream goes. The default is the TCP target of `connectTarget` (the bay);
+	/// a deck overrides it to relay to an upstream bay's own `connect`.
+	func connectRoute(_ id: String) async throws -> ConnectRoute
+}
+
+extension BayService {
+	public func connectRoute(_ id: String) async throws -> ConnectRoute {
+		let t = try await connectTarget(id)
+		return .tcp(host: t.host, port: t.port)
+	}
+}
+
+/// What the server connects an upgraded `connect` stream to.
+public enum ConnectRoute: Sendable {
+	/// Open a TCP connection to the capsule's sshd (the bay's case).
+	case tcp(host: String, port: Int)
+	/// Call `open` on the connection's thread; it returns a stream that is already upgraded (the
+	/// upstream's 101 was read) or throws a `ServiceError` the server sends to the client.
+	case upstream(@Sendable () throws -> ByteStream)
 }
 
 /// An error the server turns into `{"error": {"code", "message"}}` with this HTTP status.
