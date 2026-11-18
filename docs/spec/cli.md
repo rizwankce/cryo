@@ -105,6 +105,7 @@ Register it with an agent: Claude Code `claude mcp add cryo -- cryo mcp`; other 
 ## Agent skill
 
 [skills/cryo/SKILL.md](../../skills/cryo/SKILL.md) lives in the repo; copy it into the
-agent's skills folder. `cryo mcp` sends a short version as its
+agent's skills folder. It tells an agent to use a capsule by default, even on a Mac with Xcode,
+for builds, tests, untrusted code, installs and parallel work. `cryo mcp` sends a short version as its
 `initialize` instructions. Rules: work in `/Volumes/My Shared Files`; reuse one booted Simulator
 and pass `-parallel-testing-enabled NO`; never leave work only in the capsule; release when done.
