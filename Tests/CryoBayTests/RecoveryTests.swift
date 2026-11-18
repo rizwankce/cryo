@@ -140,7 +140,7 @@ struct RecoveryTests {
 	}
 
 	/// A second bay on the same root refuses while the first holds `bay.lock`, socket or not.
-	@Test @MainActor func bayLockMakesASecondBayRefuse() throws {
+	@Test @MainActor func bayLockMakesASecondBayRefuse() async throws {
 		let p = try scratch()
 		defer { try? FileManager.default.removeItem(at: p.root) }
 		#expect(!Cleanup.bayRuns(p))
@@ -151,7 +151,7 @@ struct RecoveryTests {
 		close(fd)
 		// Not at once: a child another test is spawning right now shares the lock until its exec
 		// drops the close-on-exec fd (and so may a child spawned while a probe holds the file).
-		#expect(eventually { (try? Cleanup.refuseWhileBayRuns(p)) != nil })
+		await eventually("the bay lock to drop", timeout: .seconds(3)) { (try? Cleanup.refuseWhileBayRuns(p)) != nil }
 	}
 
 	@Test func interruptedRefreezeRepairs() {
