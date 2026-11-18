@@ -86,6 +86,12 @@ The MCP server offers `lease_mac`, `run`, `copy_in`, `copy_out`, `release_mac` a
 renews its leases itself. [skills/cryo/SKILL.md](skills/cryo/SKILL.md) teaches an agent how to use
 them.
 
+With Homebrew, the skill is installed alongside the binary. Link it for Claude Code with:
+
+```sh
+mkdir -p ~/.claude/skills && ln -s "$(brew --prefix cryo)/share/cryo/skills/cryo" ~/.claude/skills/cryo
+```
+
 ## CI
 
 [cryo-ci](https://github.com/rizwankce/cryo-ci) runs GitHub Actions jobs on capsules: each job gets
